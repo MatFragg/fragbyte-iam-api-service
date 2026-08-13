@@ -9,6 +9,9 @@ import org.hibernate.engine.jdbc.env.spi.JdbcEnvironment;
 /**
  * Hibernate physical naming strategy that converts CamelCase names to snake_case and pluralizes
  * table names.
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
  */
 public class SnakeCaseWithPluralizedTablePhysicalNamingStrategy implements PhysicalNamingStrategy {
 

@@ -4,6 +4,9 @@ package com.fragbyte.shared.infrastructure.security.constants;
  * Single source of truth for public paths (no authentication required). Consumed by both {@code
  * WebSecurityConfiguration} (Spring Security config) and {@code BearerAuthorizationRequestFilter}
  * (path matching).
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
  */
 public final class SecurityConstants {
 
