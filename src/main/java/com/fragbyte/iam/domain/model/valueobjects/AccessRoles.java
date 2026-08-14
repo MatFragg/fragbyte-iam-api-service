@@ -9,7 +9,7 @@ package com.fragbyte.iam.domain.model.valueobjects;
  * @author FragByte Development team.
  * @since 2026-13-08
  */
-public enum AccessRole {
+public enum AccessRoles {
   USER,
   ADMIN,
   SUPERADMIN,

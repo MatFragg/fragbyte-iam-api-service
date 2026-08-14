@@ -1,7 +1,9 @@
-package com.hampcoders.glottia.platform.api.iam.domain.model.events;
+package com.fragbyte.iam.domain.model.events;
 
-import com.hampcoders.glottia.platform.api.shared.domain.model.events.DomainEvent;
-import com.hampcoders.glottia.platform.api.shared.domain.model.valueobjects.UserId;
+import com.fragbyte.iam.domain.model.valueobjects.Email;
+import com.fragbyte.iam.domain.model.valueobjects.UserId;
+import com.fragbyte.shared.domain.model.events.DomainEvent;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -14,10 +16,13 @@ import java.util.UUID;
  * @param newEmail the new email of the user.
  * @param eventId the event identifier.
  * @param occurredOn the instant when the event occurred on.
- * @see com.hampcoders.glottia.platform.api.iam.domain.model.aggregates.User
+ * @see com.fragbyte.iam.domain.model.aggregates.User
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
  */
 public record UserEmailChangedEvent(
-    UserId userId, String newEmail, String eventId, Instant occurredOn) implements DomainEvent {
+  UserId userId, Email newEmail, String eventId, Instant occurredOn) implements DomainEvent {
 
   /**
    * The user email changed event constructor.
@@ -25,7 +30,7 @@ public record UserEmailChangedEvent(
    * @param userId the identifier of the user.
    * @param newEmail the new email of the user.
    */
-  public UserEmailChangedEvent(UserId userId, String newEmail) {
+  public UserEmailChangedEvent(UserId userId, Email newEmail) {
     this(userId, newEmail, UUID.randomUUID().toString(), Instant.now());
   }
 }

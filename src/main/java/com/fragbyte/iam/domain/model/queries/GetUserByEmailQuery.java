@@ -1,4 +1,6 @@
-package com.hampcoders.glottia.platform.api.iam.domain.model.queries;
+package com.fragbyte.iam.domain.model.queries;
+
+import com.fragbyte.iam.domain.model.valueobjects.Email;
 
 /**
  * Get user by email query.
@@ -6,6 +8,8 @@ package com.hampcoders.glottia.platform.api.iam.domain.model.queries;
  * <p>This class represents the get user by email.
  *
  * @param email the email of the user.
- * @see com.hampcoders.glottia.platform.api.iam.domain.model.aggregates.User
+ * @see com.fragbyte.iam.domain.model.aggregates.User
+ * @author FragByte Development team.
+ * @since 2026-13-08
  */
-public record GetUserByEmailQuery(String email) {}
+public record GetUserByEmailQuery(Email email) {}

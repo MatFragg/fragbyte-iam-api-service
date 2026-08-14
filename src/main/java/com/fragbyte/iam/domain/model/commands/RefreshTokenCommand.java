@@ -1,4 +1,4 @@
-package com.hampcoders.glottia.platform.api.iam.domain.model.commands;
+package com.fragbyte.iam.domain.model.commands;
 
 /**
  * Refresh token command.
@@ -6,6 +6,8 @@ package com.hampcoders.glottia.platform.api.iam.domain.model.commands;
  * <p>This class represents the command to refresh the user's token.
  *
  * @param userId the user id of the user.
- * @see com.hampcoders.glottia.platform.api.iam.domain.model.aggregates.User
+ * @see com.fragbyte.iam.domain.model.aggregates.User
+ * @author FragByte Development team.
+ * @since 2026-13-08
  */
 public record RefreshTokenCommand(String userId) {}

@@ -1,7 +1,8 @@
-package com.hampcoders.glottia.platform.api.iam.domain.model.events;
+package com.fragbyte.iam.domain.model.events;
 
-import com.hampcoders.glottia.platform.api.shared.domain.model.events.DomainEvent;
-import com.hampcoders.glottia.platform.api.shared.domain.model.valueobjects.UserId;
+import com.fragbyte.iam.domain.model.valueobjects.UserId;
+import com.fragbyte.shared.domain.model.events.DomainEvent;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -13,7 +14,10 @@ import java.util.UUID;
  * @param userId the identifier of the user.
  * @param eventId the event identifier.
  * @param occurredOn the instant when the event occurred on.
- * @see com.hampcoders.glottia.platform.api.iam.domain.model.aggregates.User
+ * @see com.fragbyte.iam.domain.model.aggregates.User
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
  */
 public record UserPasswordChangedEvent(UserId userId, String eventId, Instant occurredOn)
     implements DomainEvent {

@@ -1,4 +1,7 @@
-package com.hampcoders.glottia.platform.api.iam.domain.model.commands;
+package com.fragbyte.iam.domain.model.commands;
+
+import com.fragbyte.iam.domain.model.valueobjects.Email;
+import com.fragbyte.iam.domain.model.valueobjects.Password;
 
 /**
  * Sign up command.
@@ -7,6 +10,8 @@ package com.hampcoders.glottia.platform.api.iam.domain.model.commands;
  *
  * @param email the email of the user.
  * @param password the password of the user.
- * @see com.hampcoders.glottia.platform.api.iam.domain.model.aggregates.User
+ * @see com.fragbyte.iam.domain.model.aggregates.User
+ * @author FragByte Development team.
+ * @since 2026-13-08
  */
-public record SignUpCommand(String email, String password) {}
+public record SignUpCommand(Email email, Password password) {}
