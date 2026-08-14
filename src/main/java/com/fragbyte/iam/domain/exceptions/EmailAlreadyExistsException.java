@@ -1,6 +1,11 @@
-package com.hampcoders.glottia.platform.api.iam.domain.model.exceptions;
+package com.fragbyte.iam.domain.exceptions;
 
-/** Thrown when sign-up attempts to register an email that already exists. */
+/**
+ * Thrown when sign-up attempts to register an email that already exists.
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
+ */
 public class EmailAlreadyExistsException extends RuntimeException {
 
   /**
