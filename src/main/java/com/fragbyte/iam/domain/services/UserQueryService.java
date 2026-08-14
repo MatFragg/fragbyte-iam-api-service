@@ -1,38 +1,45 @@
-package com.hampcoders.glottia.platform.api.iam.domain.services;
+package com.fragbyte.iam.domain.services;
 
-import com.hampcoders.glottia.platform.api.iam.domain.model.aggregates.User;
-import com.hampcoders.glottia.platform.api.iam.domain.model.queries.GetAllUsersQuery;
-import com.hampcoders.glottia.platform.api.iam.domain.model.queries.GetUserByEmailQuery;
-import com.hampcoders.glottia.platform.api.iam.domain.model.queries.GetUserByIdQuery;
+import com.fragbyte.iam.domain.model.aggregates.User;
+import com.fragbyte.iam.domain.model.queries.GetAllUsersQuery;
+import com.fragbyte.iam.domain.model.queries.GetUserByEmailQuery;
+import com.fragbyte.iam.domain.model.queries.GetUserByIdQuery;
+import com.fragbyte.shared.domain.model.valueobjects.ApplicationError;
+import com.fragbyte.shared.domain.model.valueobjects.Result;
+
 import java.util.List;
-import java.util.Optional;
 
-/** User query service contract for IAM User queries. */
+/**
+ * User query service contract for IAM User queries.
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
+ */
 public interface UserQueryService {
 
   /**
    * Gets all the users from database.
    *
    * @param query the query to get all the users.
-   * @return a list of users.
+   * @return a {@link Result} containing the list of users.
    */
-  List<User> handle(GetAllUsersQuery query);
+  Result<List<User>, ApplicationError> handle(GetAllUsersQuery query);
 
   /**
    * Gets a user by id from database.
    *
    * @param query the query to get a user by id.
-   * @return an {@link Optional} containing the matching user if one exists; otherwise, {@link
-   *     Optional#empty()}
+   * @return a {@link Result} containing the matching user if one exists; otherwise, a {@link
+   *     Result.Failure} with an {@link ApplicationError}
    */
-  Optional<User> handle(GetUserByIdQuery query);
+  Result<User, ApplicationError> handle(GetUserByIdQuery query);
 
   /**
    * Gets a user by email from database.
    *
    * @param query the query to get a user by email.
-   * @return on {@link Optional} containing the matching user if one exists; otherwise, {@link
-   *     Optional#empty()}
+   * @return a {@link Result} containing the matching user if one exists; otherwise, a {@link
+   *     Result.Failure} with an {@link ApplicationError}
    */
-  Optional<User> handle(GetUserByEmailQuery query);
+  Result<User, ApplicationError> handle(GetUserByEmailQuery query);
 }

@@ -1,42 +1,48 @@
-package com.hampcoders.glottia.platform.api.iam.domain.services;
+package com.fragbyte.iam.domain.services;
 
-import com.hampcoders.glottia.platform.api.iam.domain.model.aggregates.User;
-import com.hampcoders.glottia.platform.api.iam.domain.model.commands.RefreshTokenCommand;
-import com.hampcoders.glottia.platform.api.iam.domain.model.commands.SignInCommand;
-import com.hampcoders.glottia.platform.api.iam.domain.model.commands.SignUpCommand;
-import java.util.Optional;
+import com.fragbyte.iam.domain.model.aggregates.User;
+import com.fragbyte.iam.domain.model.commands.RefreshTokenCommand;
+import com.fragbyte.iam.domain.model.commands.SignInCommand;
+import com.fragbyte.iam.domain.model.commands.SignUpCommand;
+import com.fragbyte.shared.domain.model.valueobjects.ApplicationError;
+import com.fragbyte.shared.domain.model.valueobjects.Result;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
-/** User command service contract for IAM User commands. */
+/**
+ * User command service contract for IAM User commands.
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
+ */
 public interface UserCommandService {
 
   /**
    * Authenticates an existing user.
    *
    * @param command the command containing the user's credentials
-   * @return an {@link Optional} containing an {@link ImmutablePair} where the left element is the
+   * @return a {@link Result} containing an {@link ImmutablePair} where the left element is the
    *     authenticated {@link User} and the right element is the generated authentication token;
-   *     otherwise, {@link Optional#empty()} if authentication fails
+   *     otherwise, a {@link Result.Failure} with an {@link ApplicationError}
    */
-  Optional<ImmutablePair<User, String>> handle(SignInCommand command);
+  Result<ImmutablePair<User, String>, ApplicationError> handle(SignInCommand command);
 
   /**
    * Registers a new user.
    *
    * @param command the command containing the registration data
-   * @return an {@link Optional} containing an {@link ImmutablePair} where the left element is the
+   * @return a {@link Result} containing an {@link ImmutablePair} where the left element is the
    *     newly created {@link User} and the right element is the generated authentication token;
-   *     otherwise, {@link Optional#empty()} if the user cannot be registered
+   *     otherwise, a {@link Result.Failure} with an {@link ApplicationError}
    */
-  Optional<ImmutablePair<User, String>> handle(SignUpCommand command);
+  Result<ImmutablePair<User, String>, ApplicationError> handle(SignUpCommand command);
 
   /**
    * Refreshes an authenticated user's access token.
    *
    * @param command the command containing the refresh token information
-   * @return an {@link Optional} containing an {@link ImmutablePair} where the left element is the
+   * @return a {@link Result} containing an {@link ImmutablePair} where the left element is the
    *     authenticated {@link User} and the right element is the newly generated authentication
-   *     token; otherwise, {@link Optional#empty()} if the refresh token is invalid
+   *     token; otherwise, a {@link Result.Failure} with an {@link ApplicationError}
    */
-  Optional<ImmutablePair<User, String>> handle(RefreshTokenCommand command);
+  Result<ImmutablePair<User, String>, ApplicationError> handle(RefreshTokenCommand command);
 }
