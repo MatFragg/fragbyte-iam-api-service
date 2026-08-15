@@ -54,22 +54,18 @@ public class User extends AuditableAbstractAggregateRoot<User> {
   private Password password;
 
   /** Platform-level authorization roles. */
-  @ElementCollection(fetch = FetchType.EAGER, targetClass = AccessRoles.class)
-  @CollectionTable(name = "user_access_roles", joinColumns = @JoinColumn(name = "user_id"))
   @Enumerated(EnumType.STRING)
   @Column(name = "access_role", nullable = false, length = 20)
-  private Set<AccessRoles> accessRoles;
+  private AccessRoles accessRoles;
 
   /** The user constructor as private for jpa operations. */
-  protected User() {
-    this.accessRoles = new HashSet<>();
-  }
+  protected User() {}
 
   private User(Email email, Password password) {
     this.userId = UserId.newUserId();
     this.email = email;
     this.password = password;
-    this.accessRoles = EnumSet.of(AccessRoles.USER);
+    this.accessRoles = AccessRoles.USER;
     validateInvariants();
     publishEvent(new UserSignedUpEvent(this.userId, email));
   }
@@ -105,55 +101,8 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     if (password == null) {
       throw new IllegalArgumentException("Password cannot be null");
     }
-    if (accessRoles == null || accessRoles.isEmpty()) {
-      throw new IllegalArgumentException("User must have at least one access role");
-    }
-  }
-
-  /**
-   * Adds an access role to the user.
-   *
-   * <p>If the role is not already assigned, the aggregate updates its authorization roles and
-   * publishes a {@link UserAccessRoleChangedEvent}.
-   *
-   * @param role the access role to add
-   * @throws NullPointerException if {@code role} is null
-   */
-  public void addRole(AccessRoles role) {
-    Objects.requireNonNull(role, "role cannot be null");
-    if (this.accessRoles.add(role)) {
-      publishEvent(new UserAccessRoleChangedEvent(this.userId, null, role));
-    }
-  }
-
-  /**
-   * Adds the given access roles to the user.
-   *
-   * @param roles the access roles to add
-   * @throws NullPointerException if {@code roles} is null
-   */
-  public void addRoles(Collection<AccessRoles> roles) {
-    Objects.requireNonNull(roles, "roles cannot be null");
-    roles.forEach(this::addRole);
-  }
-
-  /**
-   * Removes an access role from the user.
-   *
-   * <p>If the role is currently assigned, the aggregate updates its authorization roles and
-   * publishes a {@link UserAccessRoleChangedEvent}.
-   *
-   * @param role the access role to remove
-   * @throws NullPointerException if {@code role} is null
-   * @throws IllegalArgumentException if the user would be left without any role
-   */
-  public void removeRole(AccessRoles role) {
-    Objects.requireNonNull(role, "role cannot be null");
-    if (this.accessRoles.size() == 1 && this.accessRoles.contains(role)) {
-      throw new IllegalArgumentException("User must have at least one access role");
-    }
-    if (this.accessRoles.remove(role)) {
-      publishEvent(new UserAccessRoleChangedEvent(this.userId, role, null));
+    if (accessRoles == null) {
+      throw new IllegalArgumentException("AccessRole cannot be null");
     }
   }
 
@@ -188,5 +137,24 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     Objects.requireNonNull(newHashedPassword, "newHashedPassword cannot be null");
     this.password = newHashedPassword;
     publishEvent(new UserPasswordChangedEvent(this.userId));
+  }
+
+  /**
+   * Assigns a new platform access role to the user.
+   *
+   * <p>If the provided role differs from the current one, the aggregate updates its authorization
+   * role and publishes a {@link UserAccessRoleChangedEvent}.
+   *
+   * @param newRole the new platform access role
+   * @throws NullPointerException if {@code newRole} is null
+   */
+  public void assignAccessRole(AccessRoles newRole) {
+    Objects.requireNonNull(newRole, "newRole cannot be null");
+    if (this.accessRoles == newRole) {
+      return;
+    }
+    AccessRoles previous = this.accessRoles;
+    this.accessRoles = newRole;
+    publishEvent(new UserAccessRoleChangedEvent(this.userId, previous, newRole));
   }
 }
