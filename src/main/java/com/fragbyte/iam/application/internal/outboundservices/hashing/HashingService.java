@@ -1,6 +1,11 @@
-package com.hampcoders.glottia.platform.api.iam.application.internal.outboundservices.hashing;
+package com.fragbyte.iam.application.internal.outboundservices.hashing;
 
-/** HashingService interface. This interface is used to encode and match passwords */
+/**
+ * HashingService interface. This interface is used to encode and match passwords
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
+ */
 public interface HashingService {
   /**
    * Encode a password.
