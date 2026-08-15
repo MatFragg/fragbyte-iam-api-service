@@ -1,0 +1,49 @@
+package com.hampcoders.glottia.platform.api.iam.infrastructure.authorization.sfs.services;
+
+import com.hampcoders.glottia.platform.api.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
+import com.hampcoders.glottia.platform.api.iam.infrastructure.persistence.jpa.repositories.UserRepository;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+/**
+ * Default implementation of {@link UserDetailsService} backed by the {@link UserRepository}.
+ *
+ * <p>Used by Spring Security during authentication to load user information from the persistence
+ * layer and adapt it into a {@link UserDetails} instance.
+ */
+@Service(value = "defaultUserDetailsService")
+public class UserDetailsServiceImpl implements UserDetailsService {
+
+  private final UserRepository userRepository;
+
+  /**
+   * Creates a new user details service.
+   *
+   * @param userRepository the repository used to retrieve users by email
+   */
+  public UserDetailsServiceImpl(UserRepository userRepository) {
+    this.userRepository = userRepository;
+  }
+
+  /**
+   * Loads a user by email address.
+   *
+   * <p>Spring Security invokes this method during authentication to retrieve the corresponding
+   * {@link UserDetails}.
+   *
+   * @param email the user's email address
+   * @return the user details associated with the specified email
+   * @throws UsernameNotFoundException if no user exists with the given email
+   */
+  @Override
+  public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+    var user =
+        userRepository
+            .findByEmail(email)
+            .orElseThrow(
+                () -> new UsernameNotFoundException("User not found with email: " + email));
+    return UserDetailsImpl.build(user);
+  }
+}
