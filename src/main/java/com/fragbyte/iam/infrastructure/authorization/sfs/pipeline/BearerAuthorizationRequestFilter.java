@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.lang.NonNull;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -32,6 +33,7 @@ public class BearerAuthorizationRequestFilter extends OncePerRequestFilter {
 
   private static final Logger LOGGER =
       LoggerFactory.getLogger(BearerAuthorizationRequestFilter.class);
+  private static final String DEFAULT_ROLE = "USER";
   private final BearerTokenService tokenService;
 
   /**
@@ -90,21 +92,25 @@ public class BearerAuthorizationRequestFilter extends OncePerRequestFilter {
    * @param claims the validated JWT claims
    * @param request the current HTTP request
    */
+  @SuppressWarnings("unchecked")
   private void setAuthenticationFromClaims(Claims claims, HttpServletRequest request) {
     String username = claims.getSubject();
     String userId = claims.get("userId", String.class);
-    String accessRoleClaim = claims.get("accessRole", String.class);
+    List<String> roleClaims = claims.get("accessRoles", List.class);
 
-    String authority =
-        "ROLE_"
-            + (accessRoleClaim != null && !accessRoleClaim.isBlank() ? accessRoleClaim : "USER");
+    List<GrantedAuthority> authorities;
+    if (roleClaims == null || roleClaims.isEmpty()) {
+      authorities = List.of(new SimpleGrantedAuthority("ROLE_" + DEFAULT_ROLE));
+    } else {
+      authorities =
+          roleClaims.stream()
+              .map(String::valueOf)
+              .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+              .map(authority -> (GrantedAuthority) authority)
+              .toList();
+    }
 
-    var userDetails =
-        new UserDetailsImpl(
-            userId,
-            username,
-            null,
-            List.of(new SimpleGrantedAuthority(authority)));
+    var userDetails = new UserDetailsImpl(userId, username, null, authorities);
     SecurityContextHolder.getContext()
         .setAuthentication(UsernamePasswordAuthenticationTokenBuilder.build(userDetails, request));
   }

@@ -16,6 +16,8 @@ import org.springframework.util.StringUtils;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -108,15 +110,20 @@ public class TokenServiceImpl implements BearerTokenService {
   public String generateToken(
       String username,
       String userId,
-      AccessRoles accessRole) {
+      Set<AccessRoles> accessRoles) {
     var issuedAt = new Date();
     var expiration = DateUtils.addDays(issuedAt, expirationDays);
+
+    var roleNames =
+        (accessRoles == null || accessRoles.isEmpty())
+            ? List.of(AccessRoles.USER.name())
+            : accessRoles.stream().map(AccessRoles::name).toList();
 
     var builder =
         Jwts.builder()
             .subject(username)
             .claim("userId", userId)
-            .claim("accessRole", accessRole != null ? accessRole.name() : AccessRoles.USER.name())
+            .claim("accessRoles", roleNames)
             .issuedAt(issuedAt)
             .expiration(expiration);
 
@@ -128,12 +135,6 @@ public class TokenServiceImpl implements BearerTokenService {
   /** {@inheritDoc} */
   public String getUserIdFromToken(String token) {
     return extractAllClaimsFromToken(token).get("userId", String.class);
-  }
-
-
-  /** {@inheritDoc} */
-  public String getAccessRoleFromToken(String token) {
-    return extractAllClaims(token).get("accessRole", String.class);
   }
 
   @Override

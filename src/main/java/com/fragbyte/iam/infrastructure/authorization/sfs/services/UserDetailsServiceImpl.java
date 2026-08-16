@@ -7,6 +7,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Default implementation of {@link UserDetailsService} backed by the {@link UserRepository}.
@@ -42,6 +43,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
    * @throws UsernameNotFoundException if no user exists with the given email
    */
   @Override
+  @Transactional(readOnly = true)
   public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
     var user =
         userRepository

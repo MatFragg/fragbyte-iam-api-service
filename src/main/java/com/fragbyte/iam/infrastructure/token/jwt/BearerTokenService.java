@@ -5,6 +5,8 @@ import com.fragbyte.iam.domain.model.valueobjects.AccessRoles;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.util.Set;
+
 /** Marker interface for the JWT token service. Extends {@link TokenService}.
  *
  * @author FragByte Development team.
@@ -25,13 +27,13 @@ public interface BearerTokenService extends TokenService {
    *
    * @param username the username
    * @param userId the user id
-   * @param accessRole the platform access role (USER / ADMIN / SUPERADMIN / SUPPORT)
+   * @param accessRoles the platform access roles (USER / ADMIN / SUPERADMIN / SUPPORT)
    * @return the generated token
    */
   String generateToken(
       String username,
       String userId,
-      AccessRoles accessRole);
+      Set<AccessRoles> accessRoles);
 
   /**
    * Gets user id from token.
@@ -40,14 +42,6 @@ public interface BearerTokenService extends TokenService {
    * @return the user identifier extracted from the token
    */
   String getUserIdFromToken(String token);
-
-  /**
-   * Gets access role from the token.
-   *
-   * @param token the generated token
-   * @return the access from of the user
-   */
-  String getAccessRoleFromToken(String token);
 
   /**
    * Extracts all the claims from the token.
