@@ -1,22 +1,23 @@
-package com.hampcoders.glottia.platform.api.iam.infrastructure.authorization.sfs.pipeline;
+package com.fragbyte.iam.infrastructure.authorization.sfs.pipeline;
 
-import com.hampcoders.glottia.platform.api.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
-import com.hampcoders.glottia.platform.api.iam.infrastructure.authorization.sfs.model.UsernamePasswordAuthenticationTokenBuilder;
-import com.hampcoders.glottia.platform.api.iam.infrastructure.tokens.jwt.BearerTokenService;
-import com.hampcoders.glottia.platform.api.shared.infrastructure.security.SecurityConstants;
+import com.fragbyte.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
+import com.fragbyte.iam.infrastructure.authorization.sfs.model.UsernamePasswordAuthenticationTokenBuilder;
+import com.fragbyte.iam.infrastructure.token.jwt.BearerTokenService;
+import com.fragbyte.shared.infrastructure.security.constants.SecurityConstants;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.List;
 
 /**
  * Spring Security filter that authenticates bearer token requests.
@@ -73,13 +74,6 @@ public class BearerAuthorizationRequestFilter extends OncePerRequestFilter {
       if (tokenService.validateToken(token)) {
         var claims = tokenService.extractAllClaimsFromToken(token);
         setAuthenticationFromClaims(claims, request);
-      } else if (isRefreshTokenPath(request)) {
-        try {
-          var claims = tokenService.extractAllClaimsFromToken(token);
-          setAuthenticationFromClaims(claims, request);
-        } catch (Exception ex) {
-          LOGGER.error("Cannot extract claims from refresh token: {}", ex.getMessage());
-        }
       } else {
         LOGGER.info("Token is not valid");
       }
@@ -91,16 +85,6 @@ public class BearerAuthorizationRequestFilter extends OncePerRequestFilter {
   }
 
   /**
-   * Validates if the path is for refresh token.
-   *
-   * @param request the current HTTP request
-   * @return the refresh token path.
-   */
-  private boolean isRefreshTokenPath(HttpServletRequest request) {
-    return "/api/v1/authentication/refresh-token".equals(request.getServletPath());
-  }
-
-  /**
    * Creates and stores the authenticated user from JWT claims.
    *
    * @param claims the validated JWT claims
@@ -109,15 +93,7 @@ public class BearerAuthorizationRequestFilter extends OncePerRequestFilter {
   private void setAuthenticationFromClaims(Claims claims, HttpServletRequest request) {
     String username = claims.getSubject();
     String userId = claims.get("userId", String.class);
-    String role = claims.get("role", String.class);
     String accessRoleClaim = claims.get("accessRole", String.class);
-    String learnerId = claims.get("learnerId", String.class);
-    String profileId = claims.get("profileId", String.class);
-
-    String subjectId =
-        "LEARNER".equals(role)
-            ? learnerId
-            : "PARTNER".equals(role) ? claims.get("partnerId", String.class) : null;
 
     String authority =
         "ROLE_"
@@ -128,9 +104,6 @@ public class BearerAuthorizationRequestFilter extends OncePerRequestFilter {
             userId,
             username,
             null,
-            subjectId,
-            role,
-            profileId,
             List.of(new SimpleGrantedAuthority(authority)));
     SecurityContextHolder.getContext()
         .setAuthentication(UsernamePasswordAuthenticationTokenBuilder.build(userDetails, request));
@@ -148,8 +121,6 @@ public class BearerAuthorizationRequestFilter extends OncePerRequestFilter {
   protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
     String path = request.getServletPath();
     for (String publicPath : SecurityConstants.PUBLIC_PATHS) {
-      // Ant-style "**" suffixes are treated as a path prefix here, mirroring Spring Security's
-      // requestMatchers wildcard semantics.
       String prefix =
           publicPath.endsWith("/**")
               ? publicPath.substring(0, publicPath.length() - 3)

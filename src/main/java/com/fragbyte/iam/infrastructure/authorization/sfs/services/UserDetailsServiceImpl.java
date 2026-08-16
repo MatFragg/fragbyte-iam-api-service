@@ -1,7 +1,8 @@
-package com.hampcoders.glottia.platform.api.iam.infrastructure.authorization.sfs.services;
+package com.fragbyte.iam.infrastructure.authorization.sfs.services;
 
-import com.hampcoders.glottia.platform.api.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
-import com.hampcoders.glottia.platform.api.iam.infrastructure.persistence.jpa.repositories.UserRepository;
+import com.fragbyte.iam.domain.model.valueobjects.Email;
+import com.fragbyte.iam.infrastructure.authorization.sfs.model.UserDetailsImpl;
+import com.fragbyte.iam.infrastructure.persistence.repositories.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -12,6 +13,9 @@ import org.springframework.stereotype.Service;
  *
  * <p>Used by Spring Security during authentication to load user information from the persistence
  * layer and adapt it into a {@link UserDetails} instance.
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
  */
 @Service(value = "defaultUserDetailsService")
 public class UserDetailsServiceImpl implements UserDetailsService {
@@ -41,7 +45,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
   public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
     var user =
         userRepository
-            .findByEmail(email)
+            .findByEmail(new Email(email))
             .orElseThrow(
                 () -> new UsernameNotFoundException("User not found with email: " + email));
     return UserDetailsImpl.build(user);
