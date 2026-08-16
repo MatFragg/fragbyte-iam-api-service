@@ -4,6 +4,8 @@ import com.fragbyte.shared.domain.model.events.DomainEvent;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import lombok.Getter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -44,6 +46,17 @@ public class AuditableAbstractAggregateRoot<T extends AbstractAggregateRoot<T>>
   @LastModifiedDate
   @Column(nullable = false)
   private Date updatedAt;
+
+  /**
+   * Enforces invariant validation before every persistence operation.
+   *
+   * <p>Wired to JPA lifecycle callbacks so subclasses can never be persisted in an invalid state.
+   */
+  @PrePersist
+  @PreUpdate
+  protected void enforceInvariants() {
+    validateInvariants();
+  }
 
   /**
    * Template method for subclasses to enforce invariant validation. Called before persistence
