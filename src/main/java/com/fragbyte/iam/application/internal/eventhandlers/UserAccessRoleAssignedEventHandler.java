@@ -1,13 +1,13 @@
 package com.fragbyte.iam.application.internal.eventhandlers;
 
-import com.fragbyte.iam.domain.model.events.UserAccessRoleChangedEvent;
+import com.fragbyte.iam.domain.model.events.UserAccessRoleAssignedEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Handles the {@link UserAccessRoleChangedEvent}.
+ * Handles the {@link UserAccessRoleAssignedEvent}.
  *
- * <p>Reacts after the {@code User} aggregate access role change is persisted. Reserved for
+ * <p>Reacts after a role has been granted to a {@code User} aggregate and persisted. Reserved for
  * triggering downstream integration, such as notifying the user through the Notifications bounded
  * context.
  *
@@ -15,15 +15,15 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * @since 2026-13-08
  */
 @Service
-public class UserAccessRoleChangedEventHandler {
+public class UserAccessRoleAssignedEventHandler {
 
   /**
-   * Handles the user access role changed event.
+   * Handles the user access role assigned event.
    *
-   * @param event the user access role changed event.
+   * @param event the user access role assigned event.
    */
   @TransactionalEventListener
-  public void on(UserAccessRoleChangedEvent event) {
+  public void on(UserAccessRoleAssignedEvent event) {
     // TODO: request the Notifications bounded context to notify the user via the
     // NotificationsFacade outbound port.
   }

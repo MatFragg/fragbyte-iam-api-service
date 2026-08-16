@@ -2,6 +2,8 @@ package com.fragbyte.iam.application.internal.outboundservices.tokens;
 
 import com.fragbyte.iam.domain.model.valueobjects.AccessRoles;
 
+import java.util.Set;
+
 /** TokenService interface. This interface is used to generate and validate tokens
  *
  * @author FragByte Development team.
@@ -14,13 +16,13 @@ public interface TokenService {
    *
    * @param username the username
    * @param userId the user id
-   * @param accessRole the platform access role (USER / ADMIN / SUPERADMIN / SUPPORT)
+   * @param accessRoles the platform access roles (USER / ADMIN / SUPERADMIN / SUPPORT)
    * @return String the token
    */
   String generateToken(
       String username,
       String userId,
-      AccessRoles accessRole);
+      Set<AccessRoles> accessRoles);
 
   /**
    * Extract the username from a token.

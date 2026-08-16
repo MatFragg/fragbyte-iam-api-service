@@ -6,10 +6,11 @@ import com.fragbyte.iam.domain.model.queries.GetUserByEmailQuery;
 import com.fragbyte.iam.domain.model.queries.GetUserByIdQuery;
 import com.fragbyte.iam.domain.services.UserQueryService;
 import com.fragbyte.iam.infrastructure.persistence.repositories.UserRepository;
+import com.fragbyte.shared.domain.model.valueobjects.Paged;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 
 /** Implementation of {@link UserQueryService} interface.
@@ -35,12 +36,14 @@ public class UserQueryServiceImpl implements UserQueryService {
    * This method is used to handle {@link GetAllUsersQuery} query.
    *
    * @param query {@link GetAllUsersQuery} instance
-   * @return {@link List} of {@link User} instances
+   * @return {@link Paged} of {@link User} instances
    * @see GetAllUsersQuery
    */
   @Override
-  public List<User> handle(GetAllUsersQuery query) {
-    return userRepository.findAll();
+  public Paged<User> handle(GetAllUsersQuery query) {
+    var pageable = PageRequest.of(query.page(), query.size());
+    var page = userRepository.findAll(pageable);
+    return Paged.of(page.getContent(), page.getTotalElements(), query.page(), query.size());
   }
 
   /**

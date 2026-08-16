@@ -1,5 +1,7 @@
 package com.fragbyte.iam.application.internal.outboundservices.hashing;
 
+import com.fragbyte.iam.domain.model.valueobjects.HashingAlgorithm;
+
 /**
  * HashingService interface. This interface is used to encode and match passwords
  *
@@ -23,4 +25,11 @@ public interface HashingService {
    * @return boolean true if the raw password matches the encoded password, false otherwise
    */
   boolean matches(CharSequence rawPassword, String encodedPassword);
+
+  /**
+   * Returns the {@link HashingAlgorithm} used by the adapter to encode passwords.
+   *
+   * @return the hashing algorithm implemented by this adapter
+   */
+  HashingAlgorithm getAlgorithm();
 }
