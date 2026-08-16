@@ -1,12 +1,15 @@
-package com.hampcoders.glottia.platform.api.iam.infrastructure.hashing.bcrypt.services;
+package com.fragbyte.iam.infrastructure.hashing.bcrypt.services;
 
-import com.hampcoders.glottia.platform.api.iam.infrastructure.hashing.bcrypt.BcryptHashingService;
+import com.fragbyte.iam.infrastructure.hashing.bcrypt.BcryptHashingService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
  * This class implements the {@link BcryptHashingService} interface. It is used to hash passwords
  * using the BCrypt algorithm.
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
  */
 @Service
 public class HashingServiceImpl implements BcryptHashingService {
