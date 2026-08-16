@@ -10,11 +10,17 @@ import com.fragbyte.iam.application.internal.outboundservices.tokens.TokenServic
 import com.fragbyte.iam.domain.exceptions.InvalidRefreshTokenException;
 import com.fragbyte.iam.domain.model.aggregates.User;
 import com.fragbyte.iam.domain.model.commands.RefreshTokenCommand;
+import com.fragbyte.iam.domain.model.entities.AccessRole;
+import com.fragbyte.iam.domain.model.valueobjects.AccessRoles;
+import com.fragbyte.iam.domain.model.valueobjects.AccountStatus;
 import com.fragbyte.iam.domain.model.valueobjects.Email;
-import com.fragbyte.iam.domain.model.valueobjects.Password;
+import com.fragbyte.iam.domain.model.valueobjects.HashingAlgorithm;
+import com.fragbyte.iam.domain.model.valueobjects.PasswordHash;
 import com.fragbyte.iam.domain.model.valueobjects.UserId;
+import com.fragbyte.iam.infrastructure.persistence.repositories.AccessRoleRepository;
 import com.fragbyte.iam.infrastructure.persistence.repositories.UserRepository;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +35,7 @@ class UserCommandServiceImplTest {
   private static final String USER_ID = "us-12345678-1234-1234-1234-123456789abc";
 
   @Mock private UserRepository userRepository;
+  @Mock private AccessRoleRepository accessRoleRepository;
   @Mock private HashingService hashingService;
   @Mock private TokenService tokenService;
 
@@ -36,12 +43,14 @@ class UserCommandServiceImplTest {
 
   @BeforeEach
   void setUp() {
-    service = new UserCommandServiceImpl(userRepository, hashingService, tokenService);
+    service =
+        new UserCommandServiceImpl(
+            userRepository, accessRoleRepository, hashingService, tokenService, false);
   }
 
   @Test
   void refreshesTokenForExistingUser() {
-    var user = User.create(new Email("jane@example.com"), new Password("hashed-password"));
+    var user = buildActiveUser();
     when(tokenService.getUserIdFromToken(PRESENTED_TOKEN)).thenReturn(user.getUserId().value());
     when(userRepository.findById(user.getUserId())).thenReturn(Optional.of(user));
     when(tokenService.generateToken(
@@ -73,5 +82,14 @@ class UserCommandServiceImplTest {
 
     assertThatThrownBy(() -> service.handle(new RefreshTokenCommand(PRESENTED_TOKEN)))
         .isInstanceOf(InvalidRefreshTokenException.class);
+  }
+
+  private User buildActiveUser() {
+    var role = new AccessRole(AccessRoles.USER, "Standard user of the platform");
+    return User.create(
+        new Email("jane@example.com"),
+        new PasswordHash("hashed-password", HashingAlgorithm.BCRYPT),
+        Set.of(role),
+        AccountStatus.ACTIVE);
   }
 }
