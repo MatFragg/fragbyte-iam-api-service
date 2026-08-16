@@ -1,11 +1,15 @@
-package com.hampcoders.glottia.platform.api.iam.infrastructure.tokens.jwt;
+package com.fragbyte.iam.infrastructure.token.jwt;
 
-import com.hampcoders.glottia.platform.api.iam.application.internal.outboundservices.tokens.TokenService;
-import com.hampcoders.glottia.platform.api.iam.domain.model.valueobjects.AccessRole;
+import com.fragbyte.iam.application.internal.outboundservices.tokens.TokenService;
+import com.fragbyte.iam.domain.model.valueobjects.AccessRoles;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 
-/** Marker interface for the JWT token service. Extends {@link TokenService}. */
+/** Marker interface for the JWT token service. Extends {@link TokenService}.
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
+ */
 public interface BearerTokenService extends TokenService {
 
   /**
@@ -22,20 +26,12 @@ public interface BearerTokenService extends TokenService {
    * @param username the username
    * @param userId the user id
    * @param accessRole the platform access role (USER / ADMIN / SUPERADMIN / SUPPORT)
-   * @param role the business role (LEARNER, PARTNER, or UNASSIGNED) — opaque to IAM
-   * @param roleSpecificId the learner or partner id — opaque to IAM
-   * @param profileStatus the profile status (INCOMPLETE, ACTIVE, DEACTIVATED) — opaque to IAM
-   * @param profileId the profile id (pr-uuid) — opaque to IAM
    * @return the generated token
    */
   String generateToken(
       String username,
       String userId,
-      AccessRole accessRole,
-      String role,
-      String roleSpecificId,
-      String profileStatus,
-      String profileId);
+      AccessRoles accessRole);
 
   /**
    * Gets user id from token.
@@ -44,38 +40,6 @@ public interface BearerTokenService extends TokenService {
    * @return the user identifier extracted from the token
    */
   String getUserIdFromToken(String token);
-
-  /**
-   * Gets user role from the token.
-   *
-   * @param token the generated token
-   * @return the role extracted from the token
-   */
-  String getRoleFromToken(String token);
-
-  /**
-   * Gets the learner id from the token.
-   *
-   * @param token the generated token
-   * @return the learner id from the token
-   */
-  String getLearnerIdStringFromToken(String token);
-
-  /**
-   * Gets the partner id from the token.
-   *
-   * @param token the generated token
-   * @return the partner id from the token
-   */
-  String getPartnerIdStringFromToken(String token);
-
-  /**
-   * Gets the profile id from the token.
-   *
-   * @param token the generated token
-   * @return the partner id from the token
-   */
-  String getProfileIdFromToken(String token);
 
   /**
    * Gets access role from the token.

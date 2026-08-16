@@ -2,8 +2,10 @@ package com.fragbyte.iam;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
-@SpringBootApplication
+@EnableJpaAuditing
+@SpringBootApplication(scanBasePackages = {"com.fragbyte.iam", "com.fragbyte.shared"})
 public class IamServiceApplication {
 
 	public static void main(String[] args) {

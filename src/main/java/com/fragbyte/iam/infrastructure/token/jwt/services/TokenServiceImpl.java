@@ -1,19 +1,11 @@
-package com.hampcoders.glottia.platform.api.iam.infrastructure.tokens.jwt.services;
+package com.fragbyte.iam.infrastructure.token.jwt.services;
 
-import com.hampcoders.glottia.platform.api.iam.domain.model.valueobjects.AccessRole;
-import com.hampcoders.glottia.platform.api.iam.infrastructure.tokens.jwt.BearerTokenService;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
+import com.fragbyte.iam.domain.model.valueobjects.AccessRoles;
+import com.fragbyte.iam.infrastructure.token.jwt.BearerTokenService;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.http.HttpServletRequest;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.function.Function;
-import javax.crypto.SecretKey;
 import org.apache.commons.lang3.time.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +13,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.function.Function;
+
 /**
  * This class implements the {@link BearerTokenService} interface. It is used to manage operations
  * related to token generation.
+ *
+ * @author FragByte Development team.
+ * @since 2026-13-08
  */
 @Service
 public class TokenServiceImpl implements BearerTokenService {
@@ -104,20 +104,11 @@ public class TokenServiceImpl implements BearerTokenService {
     return null;
   }
 
-  /** {@inheritDoc} */
-  public String getRoleFromToken(String token) {
-    return extractAllClaims(token).get("role", String.class);
-  }
-
   @Override
   public String generateToken(
       String username,
       String userId,
-      AccessRole accessRole,
-      String role,
-      String roleSpecificId,
-      String profileStatus,
-      String profileId) {
+      AccessRoles accessRole) {
     var issuedAt = new Date();
     var expiration = DateUtils.addDays(issuedAt, expirationDays);
 
@@ -125,24 +116,9 @@ public class TokenServiceImpl implements BearerTokenService {
         Jwts.builder()
             .subject(username)
             .claim("userId", userId)
-            .claim("accessRole", accessRole != null ? accessRole.name() : AccessRole.USER.name())
-            .claim("role", role)
+            .claim("accessRole", accessRole != null ? accessRole.name() : AccessRoles.USER.name())
             .issuedAt(issuedAt)
             .expiration(expiration);
-
-    if (profileStatus != null && !profileStatus.isBlank()) {
-      builder.claim("profileStatus", profileStatus);
-    }
-
-    if (profileId != null && !profileId.isBlank()) {
-      builder.claim("profileId", profileId);
-    }
-
-    if ("LEARNER".equals(role) && roleSpecificId != null && !roleSpecificId.isBlank()) {
-      builder.claim("learnerId", roleSpecificId);
-    } else if ("PARTNER".equals(role) && roleSpecificId != null && !roleSpecificId.isBlank()) {
-      builder.claim("partnerId", roleSpecificId);
-    }
 
     var key = getSigningKey();
 
@@ -151,23 +127,9 @@ public class TokenServiceImpl implements BearerTokenService {
 
   /** {@inheritDoc} */
   public String getUserIdFromToken(String token) {
-    return extractAllClaims(token).get("userId", String.class);
+    return extractAllClaimsFromToken(token).get("userId", String.class);
   }
 
-  /** {@inheritDoc} */
-  public String getLearnerIdStringFromToken(String token) {
-    return extractAllClaims(token).get("learnerId", String.class);
-  }
-
-  /** {@inheritDoc} */
-  public String getPartnerIdStringFromToken(String token) {
-    return extractAllClaims(token).get("partnerId", String.class);
-  }
-
-  /** {@inheritDoc} */
-  public String getProfileIdFromToken(String token) {
-    return extractAllClaims(token).get("profileId", String.class);
-  }
 
   /** {@inheritDoc} */
   public String getAccessRoleFromToken(String token) {
