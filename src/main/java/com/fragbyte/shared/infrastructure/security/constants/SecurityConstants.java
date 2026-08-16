@@ -13,13 +13,15 @@ public final class SecurityConstants {
   public static final String[] PUBLIC_PATHS = {
     "/api/v1/authentication/sign-in",
     "/api/v1/authentication/sign-up",
+    "/api/v1/authentication/refresh-token",
     "/v3/api-docs/**",
     "/v3/api-docs.yaml",
     "/swagger-ui/**",
     "/swagger-ui.html",
     "/swagger-resources/**",
     "/webjars/**",
-    "/api/v1/subscriptions/webhooks/**"
+    "/api/v1/subscriptions/webhooks/**",
+    "/error"
   };
 
   private SecurityConstants() {
