@@ -1,12 +1,13 @@
 package com.fragbyte.iam.domain.model.commands;
 
 import com.fragbyte.iam.domain.model.valueobjects.Email;
-import com.fragbyte.iam.domain.model.valueobjects.Password;
+import com.fragbyte.iam.domain.model.valueobjects.RawPassword;
 
 /**
  * Sign up command.
  *
- * <p>This class represents the command to sign up a user.
+ * <p>This class represents the command to sign up a user. It is a self-service flow: the user is
+ * always granted the default platform role and never chooses roles at registration.
  *
  * @param email the email of the user.
  * @param password the password of the user.
@@ -14,7 +15,7 @@ import com.fragbyte.iam.domain.model.valueobjects.Password;
  * @author FragByte Development team.
  * @since 2026-13-08
  */
-public record SignUpCommand(Email email, Password password) {
+public record SignUpCommand(Email email, RawPassword password) {
 
   /**
    * Sign up command constructor.

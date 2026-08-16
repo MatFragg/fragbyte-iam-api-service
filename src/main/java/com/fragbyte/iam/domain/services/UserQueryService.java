@@ -4,8 +4,8 @@ import com.fragbyte.iam.domain.model.aggregates.User;
 import com.fragbyte.iam.domain.model.queries.GetAllUsersQuery;
 import com.fragbyte.iam.domain.model.queries.GetUserByEmailQuery;
 import com.fragbyte.iam.domain.model.queries.GetUserByIdQuery;
+import com.fragbyte.shared.domain.model.valueobjects.Paged;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -17,12 +17,12 @@ import java.util.Optional;
 public interface UserQueryService {
 
   /**
-   * Gets all the users from database.
+   * Gets all the users from database, paginated.
    *
    * @param query the query to get all the users.
-   * @return a list of users.
+   * @return a {@link Paged} container of users.
    */
-  List<User> handle(GetAllUsersQuery query);
+  Paged<User> handle(GetAllUsersQuery query);
 
   /**
    * Gets a user by id from database.

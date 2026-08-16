@@ -1,9 +1,18 @@
 package com.fragbyte.iam.domain.services;
 
 import com.fragbyte.iam.domain.model.aggregates.User;
+import com.fragbyte.iam.domain.model.commands.AssignAccessRoleCommand;
+import com.fragbyte.iam.domain.model.commands.ChangeEmailCommand;
+import com.fragbyte.iam.domain.model.commands.ChangePasswordCommand;
+import com.fragbyte.iam.domain.model.commands.DisableUserCommand;
+import com.fragbyte.iam.domain.model.commands.LockUserCommand;
+import com.fragbyte.iam.domain.model.commands.ProvisionUserCommand;
 import com.fragbyte.iam.domain.model.commands.RefreshTokenCommand;
+import com.fragbyte.iam.domain.model.commands.RemoveAccessRoleCommand;
 import com.fragbyte.iam.domain.model.commands.SignInCommand;
 import com.fragbyte.iam.domain.model.commands.SignUpCommand;
+import com.fragbyte.iam.domain.model.commands.UnlockUserCommand;
+import com.fragbyte.iam.domain.model.commands.VerifyEmailCommand;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import java.util.Optional;
@@ -27,7 +36,7 @@ public interface UserCommandService {
   Optional<ImmutablePair<User, String>> handle(SignInCommand command);
 
   /**
-   * Registers a new user.
+   * Registers a new user through the self-service flow.
    *
    * @param command the command containing the registration data
    * @return an {@link Optional} containing an {@link ImmutablePair} where the left element is the
@@ -45,5 +54,68 @@ public interface UserCommandService {
    *     token; otherwise, {@link Optional#empty()} if the refresh token is invalid
    */
   Optional<ImmutablePair<User, String>> handle(RefreshTokenCommand command);
-}
 
+  /**
+   * Provisions a new user on behalf of the platform.
+   *
+   * @param command the command containing the provisioning data
+   * @return the newly provisioned {@link User} aggregate
+   */
+  User handle(ProvisionUserCommand command);
+
+  /**
+   * Changes a user's email address.
+   *
+   * @param command the command containing the user identifier and the new email
+   */
+  void handle(ChangeEmailCommand command);
+
+  /**
+   * Changes a user's password after verifying the current password.
+   *
+   * @param command the command containing the user identifier and the passwords
+   */
+  void handle(ChangePasswordCommand command);
+
+  /**
+   * Verifies a user's email address.
+   *
+   * @param command the command containing the user identifier
+   */
+  void handle(VerifyEmailCommand command);
+
+  /**
+   * Locks a user account.
+   *
+   * @param command the command containing the user identifier
+   */
+  void handle(LockUserCommand command);
+
+  /**
+   * Unlocks a user account.
+   *
+   * @param command the command containing the user identifier
+   */
+  void handle(UnlockUserCommand command);
+
+  /**
+   * Disables a user account.
+   *
+   * @param command the command containing the user identifier
+   */
+  void handle(DisableUserCommand command);
+
+  /**
+   * Grants an access role to a user.
+   *
+   * @param command the command containing the user identifier and the role to grant
+   */
+  void handle(AssignAccessRoleCommand command);
+
+  /**
+   * Revokes an access role from a user.
+   *
+   * @param command the command containing the user identifier and the role to revoke
+   */
+  void handle(RemoveAccessRoleCommand command);
+}

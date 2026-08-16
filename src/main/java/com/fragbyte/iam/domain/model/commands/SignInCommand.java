@@ -1,7 +1,7 @@
 package com.fragbyte.iam.domain.model.commands;
 
 import com.fragbyte.iam.domain.model.valueobjects.Email;
-import com.fragbyte.iam.domain.model.valueobjects.Password;
+import com.fragbyte.iam.domain.model.valueobjects.RawPassword;
 
 /**
  * Sign in command.
@@ -14,4 +14,4 @@ import com.fragbyte.iam.domain.model.valueobjects.Password;
  * @author FragByte Development team.
  * @since 2026-13-08
  */
-public record SignInCommand(Email email, Password password) {}
+public record SignInCommand(Email email, RawPassword password) {}

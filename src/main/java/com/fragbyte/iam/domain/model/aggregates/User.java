@@ -1,18 +1,28 @@
 package com.fragbyte.iam.domain.model.aggregates;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fragbyte.iam.domain.model.events.UserAccessRoleChangedEvent;
+import com.fragbyte.iam.domain.exceptions.AccountDisabledException;
+import com.fragbyte.iam.domain.exceptions.AccountLockedException;
+import com.fragbyte.iam.domain.exceptions.AccountNotVerifiedException;
+import com.fragbyte.iam.domain.exceptions.IllegalAccountStateTransitionException;
+import com.fragbyte.iam.domain.model.entities.AccessRole;
+import com.fragbyte.iam.domain.model.events.UserAccessRoleAssignedEvent;
+import com.fragbyte.iam.domain.model.events.UserAccessRoleRemovedEvent;
+import com.fragbyte.iam.domain.model.events.UserDisabledEvent;
 import com.fragbyte.iam.domain.model.events.UserEmailChangedEvent;
+import com.fragbyte.iam.domain.model.events.UserEmailVerifiedEvent;
+import com.fragbyte.iam.domain.model.events.UserLockedEvent;
 import com.fragbyte.iam.domain.model.events.UserPasswordChangedEvent;
+import com.fragbyte.iam.domain.model.events.UserProvisionedEvent;
 import com.fragbyte.iam.domain.model.events.UserSignedUpEvent;
+import com.fragbyte.iam.domain.model.events.UserUnlockedEvent;
 import com.fragbyte.iam.domain.model.valueobjects.AccessRoles;
+import com.fragbyte.iam.domain.model.valueobjects.AccountStatus;
 import com.fragbyte.iam.domain.model.valueobjects.Email;
-import com.fragbyte.iam.domain.model.valueobjects.Password;
+import com.fragbyte.iam.domain.model.valueobjects.PasswordHash;
 import com.fragbyte.iam.domain.model.valueobjects.UserId;
 import com.fragbyte.shared.domain.model.aggregates.AuditableAbstractAggregateRoot;
-import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -20,17 +30,19 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import lombok.Getter;
 
-import java.util.Collection;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * User aggregate root. <hr> Represents an authenticated user of the platform. Owns the user's
- * authentication credentials and platform-level {@link AccessRoles}.
+ * authentication credentials, platform-level {@link AccessRoles} and the {@link AccountStatus}
+ * lifecycle.
  *
  * @author FragByte Development team.
  * @since 2026-13-08
@@ -38,6 +50,9 @@ import java.util.Set;
 @Getter
 @Entity
 public class User extends AuditableAbstractAggregateRoot<User> {
+
+  /** Maximum number of consecutive failed sign-in attempts before the account is locked. */
+  public static final int MAX_FAILED_SIGN_IN_ATTEMPTS = 5;
 
   /**
    * Unique identifier of the user. Generated when the Aggregate is created and shared across
@@ -51,45 +66,91 @@ public class User extends AuditableAbstractAggregateRoot<User> {
   /** User's hashed password. Plain text passwords should never be stored. */
   @JsonIgnore
   @Embedded
-  private Password password;
+  private PasswordHash passwordHash;
 
-  /** Platform-level authorization roles. */
+  /** Platform-level authorization roles. Reference data seeded at startup. */
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+      name = "user_roles",
+      joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"),
+      inverseJoinColumns = @JoinColumn(name = "role_id"))
+  private Set<AccessRole> roles;
+
+  /** Current account lifecycle state. Governs which operations are allowed. */
   @Enumerated(EnumType.STRING)
-  @Column(name = "access_role", nullable = false, length = 20)
-  private AccessRoles accessRoles;
+  @Column(name = "account_status", nullable = false, length = 20)
+  private AccountStatus accountStatus;
+
+  /** Number of consecutive failed sign-in attempts. Reset to zero on a successful sign-in. */
+  @Column(name = "failed_sign_in_attempts", nullable = false)
+  private int failedSignInAttempts;
 
   /** The user constructor as private for jpa operations. */
   protected User() {}
 
-  private User(Email email, Password password) {
+  private User(
+      Email email, PasswordHash passwordHash, Set<AccessRole> roles, AccountStatus accountStatus) {
     this.userId = UserId.newUserId();
     this.email = email;
-    this.password = password;
-    this.accessRoles = AccessRoles.USER;
+    this.passwordHash = passwordHash;
+    this.roles = new HashSet<>(roles);
+    this.accountStatus = accountStatus;
+    this.failedSignInAttempts = 0;
     validateInvariants();
-    publishEvent(new UserSignedUpEvent(this.userId, email));
   }
 
   /**
-   * Creates a new {@code User} aggregate.
+   * Creates a new {@code User} aggregate through the self-service sign-up flow.
    *
-   * <p>The user is initialized with the default access role {@link AccessRoles#USER} and a new
-   * unique identifier. A {@link UserSignedUpEvent} is published after successful creation.
+   * <p>The user is initialized with the provided roles (the caller supplies the default platform
+   * role) and the given initial {@link AccountStatus}. A {@link UserSignedUpEvent} is published
+   * after successful creation.
    *
    * @param email the user's unique email address
-   * @param password the hashed password
+   * @param passwordHash the hashed password
+   * @param roles the initial access roles (must be non-empty)
+   * @param accountStatus the initial account status
    * @return a newly created user aggregate
    * @throws IllegalArgumentException if any business invariant is violated
    */
-  public static User create(Email email, Password password) {
-    return new User(email, password);
+  public static User create(
+      Email email,
+      PasswordHash passwordHash,
+      Set<AccessRole> roles,
+      AccountStatus accountStatus) {
+    var user = new User(email, passwordHash, roles, accountStatus);
+    user.publishEvent(new UserSignedUpEvent(user.userId, email));
+    return user;
+  }
+
+  /**
+   * Provisions a new {@code User} aggregate on behalf of the platform.
+   *
+   * <p>Used by the administrator provisioning flow. Unlike {@link #create}, a {@link
+   * UserProvisionedEvent} is published to distinguish the creation from a self-service sign-up.
+   *
+   * @param email the user's unique email address
+   * @param passwordHash the hashed password
+   * @param roles the initial access roles (must be non-empty)
+   * @param accountStatus the initial account status
+   * @return a newly provisioned user aggregate
+   * @throws IllegalArgumentException if any business invariant is violated
+   */
+  public static User provision(
+      Email email,
+      PasswordHash passwordHash,
+      Set<AccessRole> roles,
+      AccountStatus accountStatus) {
+    var user = new User(email, passwordHash, roles, accountStatus);
+    user.publishEvent(new UserProvisionedEvent(user.userId, email, user.getAccessRoles()));
+    return user;
   }
 
   /**
    * Validates the aggregate's business invariants.
    *
-   * <p>This method is invoked during aggregate creation to guarantee that the aggregate is always
-   * persisted in a valid state.
+   * <p>This method is invoked during aggregate creation and before persistence operations to
+   * guarantee that the aggregate is always persisted in a valid state.
    *
    * @throws IllegalArgumentException if any invariant is violated
    */
@@ -98,12 +159,137 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     if (email == null) {
       throw new IllegalArgumentException("Email cannot be null");
     }
-    if (password == null) {
-      throw new IllegalArgumentException("Password cannot be null");
+    if (passwordHash == null) {
+      throw new IllegalArgumentException("Password hash cannot be null");
     }
-    if (accessRoles == null) {
-      throw new IllegalArgumentException("AccessRole cannot be null");
+    if (accountStatus == null) {
+      throw new IllegalArgumentException("AccountStatus cannot be null");
     }
+    if (roles == null || roles.isEmpty()) {
+      throw new IllegalArgumentException("User must have at least one access role");
+    }
+  }
+
+  /**
+   * Returns the user's access roles as domain value objects.
+   *
+   * @return an unmodifiable set of the user's roles
+   */
+  public Set<AccessRoles> getAccessRoles() {
+    return roles.stream().map(AccessRole::getName).collect(Collectors.toUnmodifiableSet());
+  }
+
+  /**
+   * Determines whether the user holds the given access role.
+   *
+   * @param roleName the role to check
+   * @return {@code true} if the user holds the role; otherwise {@code false}
+   */
+  public boolean hasAccessRole(AccessRoles roleName) {
+    return roles.stream().anyMatch(role -> role.getName() == roleName);
+  }
+
+  /**
+   * Asserts that the account is allowed to sign in.
+   *
+   * @throws AccountDisabledException if the account is disabled
+   * @throws AccountLockedException if the account is locked
+   * @throws AccountNotVerifiedException if the account has not been verified
+   */
+  public void assertCanSignIn() {
+    if (accountStatus == AccountStatus.DISABLED) {
+      throw new AccountDisabledException();
+    }
+    if (accountStatus == AccountStatus.LOCKED) {
+      throw new AccountLockedException();
+    }
+    if (accountStatus == AccountStatus.UNVERIFIED) {
+      throw new AccountNotVerifiedException();
+    }
+  }
+
+  /**
+   * Records a failed sign-in attempt.
+   *
+   * <p>When the number of consecutive failures reaches {@link #MAX_FAILED_SIGN_IN_ATTEMPTS}, the
+   * account is automatically locked and a {@link UserLockedEvent} is published.
+   */
+  public void recordFailedSignInAttempt() {
+    if (accountStatus != AccountStatus.ACTIVE) {
+      return;
+    }
+    failedSignInAttempts++;
+    if (failedSignInAttempts >= MAX_FAILED_SIGN_IN_ATTEMPTS) {
+      failedSignInAttempts = 0;
+      accountStatus = AccountStatus.LOCKED;
+      publishEvent(new UserLockedEvent(userId));
+    }
+  }
+
+  /**
+   * Resets the consecutive failed sign-in attempt counter after a successful sign-in.
+   */
+  public void resetFailedSignInAttempts() {
+    failedSignInAttempts = 0;
+  }
+
+  /**
+   * Verifies the user's email address, transitioning the account from {@code UNVERIFIED} to {@code
+   * ACTIVE}.
+   *
+   * @throws IllegalAccountStateTransitionException if the account is not {@code UNVERIFIED}
+   */
+  public void verifyEmail() {
+    assertState(AccountStatus.UNVERIFIED, "Only an unverified account can be verified");
+    accountStatus = AccountStatus.ACTIVE;
+    publishEvent(new UserEmailVerifiedEvent(userId));
+  }
+
+  /**
+   * Locks the account, temporarily suspending access to the platform.
+   *
+   * <p>No-op when the account is already locked.
+   *
+   * @throws IllegalAccountStateTransitionException if the account is disabled
+   */
+  public void lock() {
+    if (accountStatus == AccountStatus.LOCKED) {
+      return;
+    }
+    assertStateNot(AccountStatus.DISABLED, "A disabled account cannot be locked");
+    accountStatus = AccountStatus.LOCKED;
+    publishEvent(new UserLockedEvent(userId));
+  }
+
+  /**
+   * Unlocks the account, transitioning it back to {@code ACTIVE}.
+   *
+   * <p>No-op when the account is already active.
+   *
+   * @throws IllegalAccountStateTransitionException if the account is unverified or disabled
+   */
+  public void unlock() {
+    if (accountStatus == AccountStatus.ACTIVE) {
+      return;
+    }
+    assertStateNot(AccountStatus.UNVERIFIED, "An unverified account cannot be unlocked");
+    assertStateNot(AccountStatus.DISABLED, "A disabled account cannot be unlocked");
+    accountStatus = AccountStatus.ACTIVE;
+    failedSignInAttempts = 0;
+    publishEvent(new UserUnlockedEvent(userId));
+  }
+
+  /**
+   * Disables the account permanently, preventing any future sign-in.
+   *
+   * <p>No-op when the account is already disabled.
+   */
+  public void disable() {
+    if (accountStatus == AccountStatus.DISABLED) {
+      return;
+    }
+    accountStatus = AccountStatus.DISABLED;
+    publishEvent(new UserDisabledEvent(userId));
   }
 
   /**
@@ -130,31 +316,65 @@ public class User extends AuditableAbstractAggregateRoot<User> {
    * <p>A {@link UserPasswordChangedEvent} is published after the password has been successfully
    * updated.
    *
-   * @param newHashedPassword the new hashed password
-   * @throws NullPointerException if {@code newHashedPassword} is null
+   * @param newPasswordHash the new hashed password
+   * @throws NullPointerException if {@code newPasswordHash} is null
    */
-  public void changePassword(Password newHashedPassword) {
-    Objects.requireNonNull(newHashedPassword, "newHashedPassword cannot be null");
-    this.password = newHashedPassword;
+  public void changePassword(PasswordHash newPasswordHash) {
+    Objects.requireNonNull(newPasswordHash, "newPasswordHash cannot be null");
+    this.passwordHash = newPasswordHash;
     publishEvent(new UserPasswordChangedEvent(this.userId));
   }
 
   /**
-   * Assigns a new platform access role to the user.
+   * Grants a new platform access role to the user.
    *
-   * <p>If the provided role differs from the current one, the aggregate updates its authorization
-   * role and publishes a {@link UserAccessRoleChangedEvent}.
+   * <p>If the user already holds the role, the operation is a no-op. Otherwise a {@link
+   * UserAccessRoleAssignedEvent} is published.
    *
-   * @param newRole the new platform access role
-   * @throws NullPointerException if {@code newRole} is null
+   * @param role the access role to grant
+   * @throws NullPointerException if {@code role} is null
    */
-  public void assignAccessRole(AccessRoles newRole) {
-    Objects.requireNonNull(newRole, "newRole cannot be null");
-    if (this.accessRoles == newRole) {
+  public void assignAccessRole(AccessRole role) {
+    Objects.requireNonNull(role, "role cannot be null");
+    if (hasAccessRole(role.getName())) {
       return;
     }
-    AccessRoles previous = this.accessRoles;
-    this.accessRoles = newRole;
-    publishEvent(new UserAccessRoleChangedEvent(this.userId, previous, newRole));
+    roles.add(role);
+    publishEvent(new UserAccessRoleAssignedEvent(userId, role.getName()));
+  }
+
+  /**
+   * Revokes an access role from the user.
+   *
+   * <p>A user must always retain at least one access role. If the user does not hold the role, the
+   * operation is a no-op.
+   *
+   * @param role the access role to revoke
+   * @throws IllegalAccountStateTransitionException if this would leave the user without roles
+   * @throws NullPointerException if {@code role} is null
+   */
+  public void removeAccessRole(AccessRole role) {
+    Objects.requireNonNull(role, "role cannot be null");
+    if (!hasAccessRole(role.getName())) {
+      return;
+    }
+    if (roles.size() <= 1) {
+      throw new IllegalAccountStateTransitionException(
+          "A user must always retain at least one access role");
+    }
+    roles.removeIf(r -> r.getName() == role.getName());
+    publishEvent(new UserAccessRoleRemovedEvent(userId, role.getName()));
+  }
+
+  private void assertState(AccountStatus expected, String message) {
+    if (accountStatus != expected) {
+      throw new IllegalAccountStateTransitionException(message);
+    }
+  }
+
+  private void assertStateNot(AccountStatus forbidden, String message) {
+    if (accountStatus == forbidden) {
+      throw new IllegalAccountStateTransitionException(message);
+    }
   }
 }
