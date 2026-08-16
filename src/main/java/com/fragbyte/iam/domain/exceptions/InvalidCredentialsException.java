@@ -9,11 +9,9 @@ package com.fragbyte.iam.domain.exceptions;
 public class InvalidCredentialsException extends RuntimeException {
 
   /**
-   * Constructs the exception with a descriptive message.
-   *
-   * @param message the detail message
+   * Constructs the exception with a friendly message.
    */
-  public InvalidCredentialsException(String message) {
-    super(message);
+  public InvalidCredentialsException() {
+    super("Invalid credentials.");
   }
 }

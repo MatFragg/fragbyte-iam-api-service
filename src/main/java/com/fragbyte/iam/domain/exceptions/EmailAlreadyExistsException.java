@@ -9,11 +9,11 @@ package com.fragbyte.iam.domain.exceptions;
 public class EmailAlreadyExistsException extends RuntimeException {
 
   /**
-   * Constructs the exception with a descriptive message.
+   * Constructs the exception with a friendly message.
    *
-   * @param message the detail message
+   * @param email the email address that is already registered
    */
-  public EmailAlreadyExistsException(String message) {
-    super(message);
+  public EmailAlreadyExistsException(String email) {
+    super("The email " + email + " is already registered.");
   }
 }
