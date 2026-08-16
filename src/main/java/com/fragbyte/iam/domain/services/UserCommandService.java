@@ -4,9 +4,9 @@ import com.fragbyte.iam.domain.model.aggregates.User;
 import com.fragbyte.iam.domain.model.commands.RefreshTokenCommand;
 import com.fragbyte.iam.domain.model.commands.SignInCommand;
 import com.fragbyte.iam.domain.model.commands.SignUpCommand;
-import com.fragbyte.shared.domain.model.valueobjects.ApplicationError;
-import com.fragbyte.shared.domain.model.valueobjects.Result;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+
+import java.util.Optional;
 
 /**
  * User command service contract for IAM User commands.
@@ -20,29 +20,30 @@ public interface UserCommandService {
    * Authenticates an existing user.
    *
    * @param command the command containing the user's credentials
-   * @return a {@link Result} containing an {@link ImmutablePair} where the left element is the
+   * @return an {@link Optional} containing an {@link ImmutablePair} where the left element is the
    *     authenticated {@link User} and the right element is the generated authentication token;
-   *     otherwise, a {@link Result.Failure} with an {@link ApplicationError}
+   *     otherwise, {@link Optional#empty()} if authentication fails
    */
-  Result<ImmutablePair<User, String>, ApplicationError> handle(SignInCommand command);
+  Optional<ImmutablePair<User, String>> handle(SignInCommand command);
 
   /**
    * Registers a new user.
    *
    * @param command the command containing the registration data
-   * @return a {@link Result} containing an {@link ImmutablePair} where the left element is the
+   * @return an {@link Optional} containing an {@link ImmutablePair} where the left element is the
    *     newly created {@link User} and the right element is the generated authentication token;
-   *     otherwise, a {@link Result.Failure} with an {@link ApplicationError}
+   *     otherwise, {@link Optional#empty()} if the user cannot be registered
    */
-  Result<ImmutablePair<User, String>, ApplicationError> handle(SignUpCommand command);
+  Optional<ImmutablePair<User, String>> handle(SignUpCommand command);
 
   /**
    * Refreshes an authenticated user's access token.
    *
    * @param command the command containing the refresh token information
-   * @return a {@link Result} containing an {@link ImmutablePair} where the left element is the
+   * @return an {@link Optional} containing an {@link ImmutablePair} where the left element is the
    *     authenticated {@link User} and the right element is the newly generated authentication
-   *     token; otherwise, a {@link Result.Failure} with an {@link ApplicationError}
+   *     token; otherwise, {@link Optional#empty()} if the refresh token is invalid
    */
-  Result<ImmutablePair<User, String>, ApplicationError> handle(RefreshTokenCommand command);
+  Optional<ImmutablePair<User, String>> handle(RefreshTokenCommand command);
 }
+
