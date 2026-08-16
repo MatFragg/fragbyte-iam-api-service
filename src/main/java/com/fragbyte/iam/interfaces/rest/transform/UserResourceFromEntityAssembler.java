@@ -18,6 +18,7 @@ public class UserResourceFromEntityAssembler {
    * @return user resource
    */
   public static UserResource toResourceFrom(User user) {
-    return new UserResource(user.getUserId().value(), user.getEmail().email());
+    return new UserResource(
+        user.getUserId().value(), user.getEmail().email(), user.getAccountStatus(), user.getAccessRoles());
   }
 }

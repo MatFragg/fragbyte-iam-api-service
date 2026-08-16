@@ -2,7 +2,7 @@ package com.fragbyte.iam.interfaces.rest.transform;
 
 import com.fragbyte.iam.domain.model.commands.SignInCommand;
 import com.fragbyte.iam.domain.model.valueobjects.Email;
-import com.fragbyte.iam.domain.model.valueobjects.Password;
+import com.fragbyte.iam.domain.model.valueobjects.RawPassword;
 import com.fragbyte.iam.interfaces.rest.resources.SignInResource;
 
 /**
@@ -19,6 +19,7 @@ public class SignInCommandFromResourceAssembler {
    * @return sign-in command consumed by the application layer
    */
   public static SignInCommand toCommandFrom(SignInResource signInResource) {
-    return new SignInCommand(new Email(signInResource.email()), new Password(signInResource.password()));
+    return new SignInCommand(
+        new Email(signInResource.email()), new RawPassword(signInResource.password()));
   }
 }

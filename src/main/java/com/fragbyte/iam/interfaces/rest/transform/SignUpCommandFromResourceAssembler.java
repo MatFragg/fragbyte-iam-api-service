@@ -2,7 +2,7 @@ package com.fragbyte.iam.interfaces.rest.transform;
 
 import com.fragbyte.iam.domain.model.commands.SignUpCommand;
 import com.fragbyte.iam.domain.model.valueobjects.Email;
-import com.fragbyte.iam.domain.model.valueobjects.Password;
+import com.fragbyte.iam.domain.model.valueobjects.RawPassword;
 import com.fragbyte.iam.interfaces.rest.resources.SignUpResource;
 
 /**
@@ -20,6 +20,6 @@ public class SignUpCommandFromResourceAssembler {
    * @return sign-up command consumed by the application layer
    */
   public static SignUpCommand toCommandFrom(SignUpResource resource) {
-    return new SignUpCommand(new Email(resource.email()), new Password(resource.password()));
+    return new SignUpCommand(new Email(resource.email()), new RawPassword(resource.password()));
   }
 }

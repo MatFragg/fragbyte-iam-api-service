@@ -1,8 +1,13 @@
 package com.fragbyte.iam.interfaces.rest.advice;
 
+import com.fragbyte.iam.domain.exceptions.AccountDisabledException;
+import com.fragbyte.iam.domain.exceptions.AccountLockedException;
+import com.fragbyte.iam.domain.exceptions.AccountNotVerifiedException;
 import com.fragbyte.iam.domain.exceptions.EmailAlreadyExistsException;
+import com.fragbyte.iam.domain.exceptions.IllegalAccountStateTransitionException;
 import com.fragbyte.iam.domain.exceptions.InvalidCredentialsException;
 import com.fragbyte.iam.domain.exceptions.InvalidRefreshTokenException;
+import com.fragbyte.iam.domain.exceptions.RoleNotFoundException;
 import com.fragbyte.iam.domain.exceptions.UserNotFoundException;
 import com.fragbyte.shared.interfaces.rest.resources.ApiResponseResource;
 import org.springframework.http.HttpStatus;
@@ -67,6 +72,64 @@ public class IamExceptionHandler {
   public ResponseEntity<ApiResponseResource<Void>> handleInvalidRefreshToken(
       InvalidRefreshTokenException ex) {
     return error(HttpStatus.UNAUTHORIZED, ex.getMessage());
+  }
+
+  /**
+   * Maps an {@link AccountLockedException} to an HTTP 423 envelope.
+   *
+   * @param ex the account locked exception
+   * @return the envelope with the 423 status
+   */
+  @ExceptionHandler(AccountLockedException.class)
+  public ResponseEntity<ApiResponseResource<Void>> handleAccountLocked(AccountLockedException ex) {
+    return error(HttpStatus.LOCKED, ex.getMessage());
+  }
+
+  /**
+   * Maps an {@link AccountNotVerifiedException} to an HTTP 403 envelope.
+   *
+   * @param ex the account not verified exception
+   * @return the envelope with the 403 status
+   */
+  @ExceptionHandler(AccountNotVerifiedException.class)
+  public ResponseEntity<ApiResponseResource<Void>> handleAccountNotVerified(
+      AccountNotVerifiedException ex) {
+    return error(HttpStatus.FORBIDDEN, ex.getMessage());
+  }
+
+  /**
+   * Maps an {@link AccountDisabledException} to an HTTP 403 envelope.
+   *
+   * @param ex the account disabled exception
+   * @return the envelope with the 403 status
+   */
+  @ExceptionHandler(AccountDisabledException.class)
+  public ResponseEntity<ApiResponseResource<Void>> handleAccountDisabled(
+      AccountDisabledException ex) {
+    return error(HttpStatus.FORBIDDEN, ex.getMessage());
+  }
+
+  /**
+   * Maps an {@link IllegalAccountStateTransitionException} to an HTTP 409 envelope.
+   *
+   * @param ex the illegal account state transition exception
+   * @return the envelope with the 409 status
+   */
+  @ExceptionHandler(IllegalAccountStateTransitionException.class)
+  public ResponseEntity<ApiResponseResource<Void>> handleIllegalAccountStateTransition(
+      IllegalAccountStateTransitionException ex) {
+    return error(HttpStatus.CONFLICT, ex.getMessage());
+  }
+
+  /**
+   * Maps a {@link RoleNotFoundException} to an HTTP 404 envelope.
+   *
+   * @param ex the role not found exception
+   * @return the envelope with the 404 status
+   */
+  @ExceptionHandler(RoleNotFoundException.class)
+  public ResponseEntity<ApiResponseResource<Void>> handleRoleNotFound(RoleNotFoundException ex) {
+    return error(HttpStatus.NOT_FOUND, ex.getMessage());
   }
 
   private ResponseEntity<ApiResponseResource<Void>> error(HttpStatus status, String message) {
