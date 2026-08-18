@@ -5,12 +5,16 @@ import com.fragbyte.iam.domain.model.commands.AssignAccessRoleCommand;
 import com.fragbyte.iam.domain.model.commands.ChangeEmailCommand;
 import com.fragbyte.iam.domain.model.commands.ChangePasswordCommand;
 import com.fragbyte.iam.domain.model.commands.DisableUserCommand;
+import com.fragbyte.iam.domain.model.commands.EnableUserCommand;
+import com.fragbyte.iam.domain.model.commands.LinkFederatedIdentityCommand;
 import com.fragbyte.iam.domain.model.commands.LockUserCommand;
 import com.fragbyte.iam.domain.model.commands.ProvisionUserCommand;
 import com.fragbyte.iam.domain.model.commands.RefreshTokenCommand;
 import com.fragbyte.iam.domain.model.commands.RemoveAccessRoleCommand;
 import com.fragbyte.iam.domain.model.commands.SignInCommand;
+import com.fragbyte.iam.domain.model.commands.SignInWithProviderCommand;
 import com.fragbyte.iam.domain.model.commands.SignUpCommand;
+import com.fragbyte.iam.domain.model.commands.UnlinkFederatedIdentityCommand;
 import com.fragbyte.iam.domain.model.commands.UnlockUserCommand;
 import com.fragbyte.iam.domain.model.commands.VerifyEmailCommand;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -106,6 +110,13 @@ public interface UserCommandService {
   void handle(DisableUserCommand command);
 
   /**
+   * Re-enables a disabled user account.
+   *
+   * @param command the command containing the user identifier
+   */
+  void handle(EnableUserCommand command);
+
+  /**
    * Grants an access role to a user.
    *
    * @param command the command containing the user identifier and the role to grant
@@ -118,4 +129,28 @@ public interface UserCommandService {
    * @param command the command containing the user identifier and the role to revoke
    */
   void handle(RemoveAccessRoleCommand command);
+
+  /**
+   * Authenticates a user via an external identity provider.
+   *
+   * @param command the command containing the provider and token
+   * @return an {@link Optional} containing an {@link ImmutablePair} where the left element is the
+   *     authenticated {@link User} and the right element is the generated authentication token;
+   *     otherwise, {@link Optional#empty()} if authentication fails
+   */
+  Optional<ImmutablePair<User, String>> handle(SignInWithProviderCommand command);
+
+  /**
+   * Links a federated identity to an existing user account.
+   *
+   * @param command the command containing the user identifier, provider, and token
+   */
+  void handle(LinkFederatedIdentityCommand command);
+
+  /**
+   * Unlinks a federated identity from a user account.
+   *
+   * @param command the command containing the user identifier and provider
+   */
+  void handle(UnlinkFederatedIdentityCommand command);
 }

@@ -4,13 +4,18 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fragbyte.iam.domain.exceptions.AccountDisabledException;
 import com.fragbyte.iam.domain.exceptions.AccountLockedException;
 import com.fragbyte.iam.domain.exceptions.AccountNotVerifiedException;
+import com.fragbyte.iam.domain.exceptions.CannotUnlinkLastAuthMethodException;
 import com.fragbyte.iam.domain.exceptions.IllegalAccountStateTransitionException;
 import com.fragbyte.iam.domain.model.entities.AccessRole;
+import com.fragbyte.iam.domain.model.entities.FederatedIdentity;
 import com.fragbyte.iam.domain.model.events.UserAccessRoleAssignedEvent;
 import com.fragbyte.iam.domain.model.events.UserAccessRoleRemovedEvent;
 import com.fragbyte.iam.domain.model.events.UserDisabledEvent;
 import com.fragbyte.iam.domain.model.events.UserEmailChangedEvent;
 import com.fragbyte.iam.domain.model.events.UserEmailVerifiedEvent;
+import com.fragbyte.iam.domain.model.events.UserEnabledEvent;
+import com.fragbyte.iam.domain.model.events.UserFederatedIdentityLinkedEvent;
+import com.fragbyte.iam.domain.model.events.UserFederatedIdentityUnlinkedEvent;
 import com.fragbyte.iam.domain.model.events.UserLockedEvent;
 import com.fragbyte.iam.domain.model.events.UserPasswordChangedEvent;
 import com.fragbyte.iam.domain.model.events.UserProvisionedEvent;
@@ -18,6 +23,7 @@ import com.fragbyte.iam.domain.model.events.UserSignedUpEvent;
 import com.fragbyte.iam.domain.model.events.UserUnlockedEvent;
 import com.fragbyte.iam.domain.model.valueobjects.AccessRoles;
 import com.fragbyte.iam.domain.model.valueobjects.AccountStatus;
+import com.fragbyte.iam.domain.model.valueobjects.AuthProvider;
 import com.fragbyte.iam.domain.model.valueobjects.Email;
 import com.fragbyte.iam.domain.model.valueobjects.PasswordHash;
 import com.fragbyte.iam.domain.model.valueobjects.UserId;
@@ -32,6 +38,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToMany;
 import lombok.Getter;
 
 import java.util.HashSet;
@@ -63,7 +70,7 @@ public class User extends AuditableAbstractAggregateRoot<User> {
   /** Unique email address used for authentication. */
   @Embedded private Email email;
 
-  /** User's hashed password. Plain text passwords should never be stored. */
+  /** User's hashed password. Null for federated-only accounts. Plain text passwords should never be stored. */
   @JsonIgnore
   @Embedded
   private PasswordHash passwordHash;
@@ -75,6 +82,11 @@ public class User extends AuditableAbstractAggregateRoot<User> {
       joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"),
       inverseJoinColumns = @JoinColumn(name = "role_id"))
   private Set<AccessRole> roles;
+
+  /** Federated identities linking this user to external authentication providers. */
+  @OneToMany(cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id", referencedColumnName = "id")
+  private Set<FederatedIdentity> federatedIdentities;
 
   /** Current account lifecycle state. Governs which operations are allowed. */
   @Enumerated(EnumType.STRING)
@@ -94,6 +106,7 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     this.email = email;
     this.passwordHash = passwordHash;
     this.roles = new HashSet<>(roles);
+    this.federatedIdentities = new HashSet<>();
     this.accountStatus = accountStatus;
     this.failedSignInAttempts = 0;
     validateInvariants();
@@ -147,6 +160,33 @@ public class User extends AuditableAbstractAggregateRoot<User> {
   }
 
   /**
+   * Creates a new {@code User} aggregate through a federated identity provider (e.g. Google).
+   *
+   * <p>The user has no local password — authentication is handled entirely by the external provider.
+   * A {@link UserSignedUpEvent} is published after successful creation.
+   *
+   * @param email the user's unique email address
+   * @param identity the federated identity linking to the external provider
+   * @param roles the initial access roles (must be non-empty)
+   * @param accountStatus the initial account status
+   * @return a newly created user aggregate
+   * @throws IllegalArgumentException if any business invariant is violated
+   */
+  public static User createWithFederatedIdentity(
+      Email email,
+      FederatedIdentity identity,
+      Set<AccessRole> roles,
+      AccountStatus accountStatus) {
+    var user = new User(email, null, roles, accountStatus);
+    user.federatedIdentities.add(identity);
+    user.publishEvent(new UserSignedUpEvent(user.userId, email));
+    user.publishEvent(
+        new UserFederatedIdentityLinkedEvent(
+            user.userId, identity.getProvider(), identity.getProviderSubject()));
+    return user;
+  }
+
+  /**
    * Validates the aggregate's business invariants.
    *
    * <p>This method is invoked during aggregate creation and before persistence operations to
@@ -159,8 +199,9 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     if (email == null) {
       throw new IllegalArgumentException("Email cannot be null");
     }
-    if (passwordHash == null) {
-      throw new IllegalArgumentException("Password hash cannot be null");
+    if (!hasAtLeastOneAuthMethod()) {
+      throw new IllegalArgumentException(
+          "User must have at least one authentication method (password or federated identity)");
     }
     if (accountStatus == null) {
       throw new IllegalArgumentException("AccountStatus cannot be null");
@@ -168,6 +209,10 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     if (roles == null || roles.isEmpty()) {
       throw new IllegalArgumentException("User must have at least one access role");
     }
+  }
+
+  private boolean hasAtLeastOneAuthMethod() {
+    return passwordHash != null || (federatedIdentities != null && !federatedIdentities.isEmpty());
   }
 
   /**
@@ -280,9 +325,26 @@ public class User extends AuditableAbstractAggregateRoot<User> {
   }
 
   /**
-   * Disables the account permanently, preventing any future sign-in.
+   * Re-enables the account, transitioning it from {@code DISABLED} back to {@code ACTIVE}.
    *
-   * <p>No-op when the account is already disabled.
+   * <p>No-op when the account is already enabled.
+   *
+   * @throws IllegalAccountStateTransitionException if the account is not {@code DISABLED}
+   */
+  public void enable() {
+    if (accountStatus == AccountStatus.ACTIVE) {
+      return;
+    }
+    assertState(AccountStatus.DISABLED, "Only a disabled account can be enabled");
+    accountStatus = AccountStatus.ACTIVE;
+    failedSignInAttempts = 0;
+    publishEvent(new UserEnabledEvent(userId));
+  }
+
+  /**
+   * Disables the account, preventing any future sign-in.
+   *
+   * <p>No-op when the account is already disabled. Can be reversed via {@link #enable()}.
    */
   public void disable() {
     if (accountStatus == AccountStatus.DISABLED) {
@@ -323,6 +385,59 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     Objects.requireNonNull(newPasswordHash, "newPasswordHash cannot be null");
     this.passwordHash = newPasswordHash;
     publishEvent(new UserPasswordChangedEvent(this.userId));
+  }
+
+  /**
+   * Links a federated identity to the user account.
+   *
+   * <p>If the user already has an identity from the same provider, the operation is a no-op.
+   * Otherwise a {@link UserFederatedIdentityLinkedEvent} is published.
+   *
+   * @param identity the federated identity to link
+   * @throws CannotUnlinkLastAuthMethodException if this would leave the user with no auth method
+   * @throws NullPointerException if {@code identity} is null
+   */
+  public void linkFederatedIdentity(FederatedIdentity identity) {
+    Objects.requireNonNull(identity, "identity cannot be null");
+    if (hasFederatedIdentity(identity.getProvider())) {
+      return;
+    }
+    federatedIdentities.add(identity);
+    publishEvent(
+        new UserFederatedIdentityLinkedEvent(
+            userId, identity.getProvider(), identity.getProviderSubject()));
+  }
+
+  /**
+   * Unlinks a federated identity from the user account.
+   *
+   * <p>A user must always retain at least one authentication method. If the user does not have an
+   * identity from the given provider, the operation is a no-op.
+   *
+   * @param provider the provider to unlink
+   * @throws CannotUnlinkLastAuthMethodException if this would leave the user with no auth method
+   */
+  public void unlinkFederatedIdentity(AuthProvider provider) {
+    Objects.requireNonNull(provider, "provider cannot be null");
+    if (!hasFederatedIdentity(provider)) {
+      return;
+    }
+    if (passwordHash == null && federatedIdentities.size() <= 1) {
+      throw new CannotUnlinkLastAuthMethodException();
+    }
+    federatedIdentities.removeIf(identity -> identity.getProvider() == provider);
+    publishEvent(new UserFederatedIdentityUnlinkedEvent(userId, provider));
+  }
+
+  /**
+   * Determines whether the user has a federated identity from the given provider.
+   *
+   * @param provider the provider to check
+   * @return {@code true} if the user has a federated identity from the provider
+   */
+  public boolean hasFederatedIdentity(AuthProvider provider) {
+    return federatedIdentities.stream()
+        .anyMatch(identity -> identity.getProvider() == provider);
   }
 
   /**
