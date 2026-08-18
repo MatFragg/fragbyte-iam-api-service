@@ -3,10 +3,13 @@ package com.fragbyte.iam.interfaces.rest.advice;
 import com.fragbyte.iam.domain.exceptions.AccountDisabledException;
 import com.fragbyte.iam.domain.exceptions.AccountLockedException;
 import com.fragbyte.iam.domain.exceptions.AccountNotVerifiedException;
+import com.fragbyte.iam.domain.exceptions.CannotUnlinkLastAuthMethodException;
 import com.fragbyte.iam.domain.exceptions.EmailAlreadyExistsException;
+import com.fragbyte.iam.domain.exceptions.FederatedIdentityAlreadyLinkedException;
 import com.fragbyte.iam.domain.exceptions.IllegalAccountStateTransitionException;
 import com.fragbyte.iam.domain.exceptions.InvalidCredentialsException;
 import com.fragbyte.iam.domain.exceptions.InvalidRefreshTokenException;
+import com.fragbyte.iam.domain.exceptions.ProviderNotConfiguredException;
 import com.fragbyte.iam.domain.exceptions.RoleNotFoundException;
 import com.fragbyte.iam.domain.exceptions.UserNotFoundException;
 import com.fragbyte.shared.interfaces.rest.resources.ApiResponseResource;
@@ -130,6 +133,42 @@ public class IamExceptionHandler {
   @ExceptionHandler(RoleNotFoundException.class)
   public ResponseEntity<ApiResponseResource<Void>> handleRoleNotFound(RoleNotFoundException ex) {
     return error(HttpStatus.NOT_FOUND, ex.getMessage());
+  }
+
+  /**
+   * Maps a {@link FederatedIdentityAlreadyLinkedException} to an HTTP 409 envelope.
+   *
+   * @param ex the federated identity already linked exception
+   * @return the envelope with the 409 status
+   */
+  @ExceptionHandler(FederatedIdentityAlreadyLinkedException.class)
+  public ResponseEntity<ApiResponseResource<Void>> handleFederatedIdentityAlreadyLinked(
+      FederatedIdentityAlreadyLinkedException ex) {
+    return error(HttpStatus.CONFLICT, ex.getMessage());
+  }
+
+  /**
+   * Maps a {@link CannotUnlinkLastAuthMethodException} to an HTTP 409 envelope.
+   *
+   * @param ex the cannot unlink last auth method exception
+   * @return the envelope with the 409 status
+   */
+  @ExceptionHandler(CannotUnlinkLastAuthMethodException.class)
+  public ResponseEntity<ApiResponseResource<Void>> handleCannotUnlinkLastAuthMethod(
+      CannotUnlinkLastAuthMethodException ex) {
+    return error(HttpStatus.CONFLICT, ex.getMessage());
+  }
+
+  /**
+   * Maps a {@link ProviderNotConfiguredException} to an HTTP 400 envelope.
+   *
+   * @param ex the provider not configured exception
+   * @return the envelope with the 400 status
+   */
+  @ExceptionHandler(ProviderNotConfiguredException.class)
+  public ResponseEntity<ApiResponseResource<Void>> handleProviderNotConfigured(
+      ProviderNotConfiguredException ex) {
+    return error(HttpStatus.BAD_REQUEST, ex.getMessage());
   }
 
   private ResponseEntity<ApiResponseResource<Void>> error(HttpStatus status, String message) {

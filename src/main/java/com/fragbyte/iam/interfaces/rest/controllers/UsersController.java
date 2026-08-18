@@ -5,24 +5,30 @@ import com.fragbyte.iam.domain.model.commands.AssignAccessRoleCommand;
 import com.fragbyte.iam.domain.model.commands.ChangeEmailCommand;
 import com.fragbyte.iam.domain.model.commands.ChangePasswordCommand;
 import com.fragbyte.iam.domain.model.commands.DisableUserCommand;
+import com.fragbyte.iam.domain.model.commands.EnableUserCommand;
+import com.fragbyte.iam.domain.model.commands.LinkFederatedIdentityCommand;
 import com.fragbyte.iam.domain.model.commands.LockUserCommand;
 import com.fragbyte.iam.domain.model.commands.RemoveAccessRoleCommand;
+import com.fragbyte.iam.domain.model.commands.UnlinkFederatedIdentityCommand;
 import com.fragbyte.iam.domain.model.commands.UnlockUserCommand;
 import com.fragbyte.iam.domain.model.commands.VerifyEmailCommand;
 import com.fragbyte.iam.domain.model.queries.GetAllUsersQuery;
 import com.fragbyte.iam.domain.model.queries.GetUserByIdQuery;
 import com.fragbyte.iam.domain.model.valueobjects.AccessRoles;
+import com.fragbyte.iam.domain.model.valueobjects.AuthProvider;
 import com.fragbyte.iam.domain.model.valueobjects.UserId;
 import com.fragbyte.iam.domain.services.UserCommandService;
 import com.fragbyte.iam.domain.services.UserQueryService;
 import com.fragbyte.iam.interfaces.rest.resources.AssignAccessRoleResource;
 import com.fragbyte.iam.interfaces.rest.resources.ChangeEmailResource;
 import com.fragbyte.iam.interfaces.rest.resources.ChangePasswordResource;
+import com.fragbyte.iam.interfaces.rest.resources.LinkFederatedIdentityResource;
 import com.fragbyte.iam.interfaces.rest.resources.ProvisionUserResource;
 import com.fragbyte.iam.interfaces.rest.resources.UserResource;
 import com.fragbyte.iam.interfaces.rest.transform.AssignAccessRoleCommandFromResourceAssembler;
 import com.fragbyte.iam.interfaces.rest.transform.ChangeEmailCommandFromResourceAssembler;
 import com.fragbyte.iam.interfaces.rest.transform.ChangePasswordCommandFromResourceAssembler;
+import com.fragbyte.iam.interfaces.rest.transform.LinkFederatedIdentityCommandFromResourceAssembler;
 import com.fragbyte.iam.interfaces.rest.transform.ProvisionUserCommandFromResourceAssembler;
 import com.fragbyte.iam.interfaces.rest.transform.UserResourceFromEntityAssembler;
 import com.fragbyte.shared.domain.model.valueobjects.Paged;
@@ -64,6 +70,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>POST /api/v1/users/{userId}/disable
  *   <li>POST /api/v1/users/{userId}/roles
  *   <li>DELETE /api/v1/users/{userId}/roles/{role}
+ *   <li>POST /api/v1/users/{userId}/federated
+ *   <li>DELETE /api/v1/users/{userId}/federated/{provider}
  * </ul>
  */
 @RestController
@@ -322,6 +330,29 @@ public class UsersController {
   }
 
   /**
+   * Handles the enable user request.
+   *
+   * @param userId the user id
+   * @return the response envelope
+   */
+  @PostMapping(value = "/{userId}/enable")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPERADMIN')")
+  @Operation(
+      summary = "Enable user",
+      description = "Re-enable a disabled account. Allowed: ADMIN, SUPERADMIN.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "User enabled successfully."),
+        @ApiResponse(responseCode = "404", description = "User not found."),
+        @ApiResponse(responseCode = "409", description = "Illegal state transition.")
+      })
+  public ResponseEntity<ApiResponseResource<Void>> enableUser(@PathVariable String userId) {
+    userCommandService.handle(new EnableUserCommand(new UserId(userId)));
+    return ResponseEntity.ok(
+        ApiResponseResource.success(HttpStatus.OK.value(), "User enabled successfully", null));
+  }
+
+  /**
    * Handles the assign access role request.
    *
    * @param userId the user id
@@ -371,6 +402,72 @@ public class UsersController {
     userCommandService.handle(command);
     return ResponseEntity.ok(
         ApiResponseResource.success(HttpStatus.OK.value(), "Role removed successfully", null));
+  }
+
+  /**
+   * Handles the link federated identity request.
+   *
+   * @param userId the user id
+   * @param provider the external authentication provider
+   * @param resource the link federated identity request body
+   * @return the response envelope
+   */
+  @PostMapping(value = "/{userId}/federated/{provider}")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPERADMIN') or #userId == authentication.principal.userId")
+  @Operation(
+      summary = "Link federated identity",
+      description = "Link an external identity provider to a user account. Allowed: ADMIN or the user themselves.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Identity linked successfully."),
+        @ApiResponse(responseCode = "404", description = "User not found."),
+        @ApiResponse(responseCode = "409", description = "Identity already linked or last auth method.")
+      })
+  public ResponseEntity<ApiResponseResource<Void>> linkFederatedIdentity(
+      @PathVariable String userId,
+      @PathVariable String provider,
+      @Valid @RequestBody LinkFederatedIdentityResource resource) {
+    var command =
+        LinkFederatedIdentityCommandFromResourceAssembler.toCommandFrom(
+            new UserId(userId), toAuthProvider(provider), resource);
+    userCommandService.handle(command);
+    return ResponseEntity.ok(
+        ApiResponseResource.success(HttpStatus.OK.value(), "Identity linked successfully", null));
+  }
+
+  /**
+   * Handles the unlink federated identity request.
+   *
+   * @param userId the user id
+   * @param provider the external authentication provider to unlink
+   * @return the response envelope
+   */
+  @DeleteMapping(value = "/{userId}/federated/{provider}")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPERADMIN') or #userId == authentication.principal.userId")
+  @Operation(
+      summary = "Unlink federated identity",
+      description = "Remove an external identity provider link from a user account. Allowed: ADMIN or the user themselves.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Identity unlinked successfully."),
+        @ApiResponse(responseCode = "404", description = "User not found."),
+        @ApiResponse(responseCode = "409", description = "Cannot unlink last auth method.")
+      })
+  public ResponseEntity<ApiResponseResource<Void>> unlinkFederatedIdentity(
+      @PathVariable String userId, @PathVariable String provider) {
+    var command = new UnlinkFederatedIdentityCommand(new UserId(userId), toAuthProvider(provider));
+    userCommandService.handle(command);
+    return ResponseEntity.ok(
+        ApiResponseResource.success(HttpStatus.OK.value(), "Identity unlinked successfully", null));
+  }
+
+  private AuthProvider toAuthProvider(String providerName) {
+    try {
+      return AuthProvider.valueOf(providerName);
+    } catch (IllegalArgumentException e) {
+      throw new com.fragbyte.iam.domain.exceptions.ProviderNotConfiguredException(
+          com.fragbyte.iam.domain.model.valueobjects.AuthProvider.GOOGLE);
+    }
   }
 
   private AccessRoles toAccessRole(String roleName) {

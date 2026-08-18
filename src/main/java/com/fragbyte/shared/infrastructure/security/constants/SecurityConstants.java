@@ -12,6 +12,7 @@ public final class SecurityConstants {
 
   public static final String[] PUBLIC_PATHS = {
     "/api/v1/authentication/sign-in",
+    "/api/v1/authentication/sign-in/google",
     "/api/v1/authentication/sign-up",
     "/api/v1/authentication/refresh-token",
     "/v3/api-docs/**",

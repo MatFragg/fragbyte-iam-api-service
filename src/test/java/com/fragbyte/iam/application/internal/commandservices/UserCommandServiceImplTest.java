@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.fragbyte.iam.application.internal.outboundservices.externalidentity.ExternalIdentityVerifier;
 import com.fragbyte.iam.application.internal.outboundservices.hashing.HashingService;
 import com.fragbyte.iam.application.internal.outboundservices.tokens.TokenService;
 import com.fragbyte.iam.domain.exceptions.InvalidRefreshTokenException;
@@ -14,7 +15,6 @@ import com.fragbyte.iam.domain.model.entities.AccessRole;
 import com.fragbyte.iam.domain.model.valueobjects.AccessRoles;
 import com.fragbyte.iam.domain.model.valueobjects.AccountStatus;
 import com.fragbyte.iam.domain.model.valueobjects.Email;
-import com.fragbyte.iam.domain.model.valueobjects.HashingAlgorithm;
 import com.fragbyte.iam.domain.model.valueobjects.PasswordHash;
 import com.fragbyte.iam.domain.model.valueobjects.UserId;
 import com.fragbyte.iam.infrastructure.persistence.repositories.AccessRoleRepository;
@@ -38,6 +38,7 @@ class UserCommandServiceImplTest {
   @Mock private AccessRoleRepository accessRoleRepository;
   @Mock private HashingService hashingService;
   @Mock private TokenService tokenService;
+  @Mock private ExternalIdentityVerifier externalIdentityVerifier;
 
   private UserCommandServiceImpl service;
 
@@ -45,7 +46,12 @@ class UserCommandServiceImplTest {
   void setUp() {
     service =
         new UserCommandServiceImpl(
-            userRepository, accessRoleRepository, hashingService, tokenService, false);
+            userRepository,
+            accessRoleRepository,
+            hashingService,
+            tokenService,
+            externalIdentityVerifier,
+            false);
   }
 
   @Test
@@ -88,7 +94,7 @@ class UserCommandServiceImplTest {
     var role = new AccessRole(AccessRoles.USER, "Standard user of the platform");
     return User.create(
         new Email("jane@example.com"),
-        new PasswordHash("hashed-password", HashingAlgorithm.BCRYPT),
+        new PasswordHash("hashed-password"),
         Set.of(role),
         AccountStatus.ACTIVE);
   }

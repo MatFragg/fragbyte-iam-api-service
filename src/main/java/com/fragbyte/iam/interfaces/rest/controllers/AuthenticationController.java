@@ -1,17 +1,22 @@
 package com.fragbyte.iam.interfaces.rest.controllers;
 
+import com.fragbyte.iam.domain.model.commands.SignInWithProviderCommand;
+import com.fragbyte.iam.domain.model.valueobjects.AuthProvider;
 import com.fragbyte.iam.domain.services.UserCommandService;
 import com.fragbyte.iam.interfaces.rest.resources.AuthenticatedUserResource;
 import com.fragbyte.iam.interfaces.rest.resources.RefreshedTokenResource;
 import com.fragbyte.iam.interfaces.rest.resources.SignInResource;
+import com.fragbyte.iam.interfaces.rest.resources.SignInWithProviderResource;
 import com.fragbyte.iam.interfaces.rest.resources.SignUpResource;
 import com.fragbyte.iam.interfaces.rest.transform.SignInCommandFromResourceAssembler;
+import com.fragbyte.iam.interfaces.rest.transform.SignInWithProviderCommandFromResourceAssembler;
 import com.fragbyte.iam.interfaces.rest.transform.SignUpCommandFromResourceAssembler;
 import com.fragbyte.iam.interfaces.rest.transform.AuthenticatedUserResourceFromEntityAssembler;
 import com.fragbyte.iam.interfaces.rest.transform.RefreshTokenCommandFromResourceAssembler;
 import com.fragbyte.iam.interfaces.rest.transform.RefreshedTokenResourceFromTokenAssembler;
 import com.fragbyte.shared.interfaces.rest.resources.ApiResponseResource;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,11 +33,12 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * AuthenticationController.
  *
- * <p>This controller is responsible for handling authentication requests. It exposes three
+ * <p>This controller is responsible for handling authentication requests. It exposes four
  * endpoints:
  *
  * <ul>
  *   <li>POST /api/v1/authentication/sign-in
+ *   <li>POST /api/v1/authentication/sign-in/google
  *   <li>POST /api/v1/authentication/sign-up
  *   <li>POST /api/v1/authentication/refresh-token
  * </ul>
@@ -80,6 +86,41 @@ public class AuthenticationController {
           .body(ApiResponseResource.error(HttpStatus.NOT_FOUND.value(), "User not found"));
     }
 
+    var authenticatedUserResource =
+        AuthenticatedUserResourceFromEntityAssembler.toResourceFrom(
+            authenticatedUser.get().getLeft(), authenticatedUser.get().getRight());
+    return ResponseEntity.ok(
+        ApiResponseResource.success(
+            HttpStatus.OK.value(), "Sign in successful", authenticatedUserResource));
+  }
+
+  /**
+   * Handles the sign-in with Google request.
+   *
+   * @param resource the sign-in with Google request body.
+   * @return the authenticated user resource.
+   */
+  @PostMapping("/sign-in/google")
+  @RateLimiter(name = "signIn")
+  @Operation(
+      summary = "Sign in with Google",
+      description = "Authenticate a user via a Google ID token.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "OK"),
+        @ApiResponse(responseCode = "400", description = "Bad Request"),
+        @ApiResponse(responseCode = "404", description = "Not Found")
+      })
+  public ResponseEntity<ApiResponseResource<AuthenticatedUserResource>> signInWithGoogle(
+      @Valid @RequestBody SignInWithProviderResource resource) {
+    var command =
+        SignInWithProviderCommandFromResourceAssembler.toCommandFrom(
+            AuthProvider.GOOGLE, resource);
+    var authenticatedUser = userCommandService.handle(command);
+    if (authenticatedUser.isEmpty()) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .body(ApiResponseResource.error(HttpStatus.NOT_FOUND.value(), "User not found"));
+    }
     var authenticatedUserResource =
         AuthenticatedUserResourceFromEntityAssembler.toResourceFrom(
             authenticatedUser.get().getLeft(), authenticatedUser.get().getRight());
