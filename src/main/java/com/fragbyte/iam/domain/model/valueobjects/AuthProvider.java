@@ -1,7 +1,5 @@
 package com.fragbyte.iam.domain.model.valueobjects;
 
-import jakarta.persistence.Embeddable;
-
 /**
  * Authentication provider.
  *
@@ -12,7 +10,6 @@ import jakarta.persistence.Embeddable;
  * @author FragByte Development team.
  * @since 2026-17-08
  */
-@Embeddable
 public enum AuthProvider {
   LOCAL,
   GOOGLE;
