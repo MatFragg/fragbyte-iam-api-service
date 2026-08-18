@@ -270,7 +270,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
     // Look up existing user by federated identity
     var existingUser =
-        userRepository.findByFederatedIdentityProviderAndFederatedIdentityProviderSubject(
+        userRepository.findByFederatedIdentitiesProviderAndFederatedIdentitiesProviderSubject(
             command.provider(), verifiedIdentity.providerSubject());
 
     if (existingUser.isPresent()) {

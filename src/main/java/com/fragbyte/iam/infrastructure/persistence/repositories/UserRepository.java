@@ -44,6 +44,6 @@ public interface UserRepository extends JpaRepository<User, UserId> {
    * @return an {@link Optional} containing the matching user if found; otherwise, {@link
    *     Optional#empty()}
    */
-  Optional<User> findByFederatedIdentityProviderAndFederatedIdentityProviderSubject(
+  Optional<User> findByFederatedIdentitiesProviderAndFederatedIdentitiesProviderSubject(
       AuthProvider provider, String providerSubject);
 }
