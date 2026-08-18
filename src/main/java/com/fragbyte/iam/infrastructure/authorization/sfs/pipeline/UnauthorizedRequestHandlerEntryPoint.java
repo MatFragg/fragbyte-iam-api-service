@@ -1,5 +1,6 @@
 package com.fragbyte.iam.infrastructure.authorization.sfs.pipeline;
 
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fragbyte.shared.interfaces.rest.resources.ApiResponseResource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
@@ -12,6 +13,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -30,7 +33,11 @@ public class UnauthorizedRequestHandlerEntryPoint implements AuthenticationEntry
   private static final String UNAUTHORIZED_MESSAGE =
       "Full authentication is required to access this resource";
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper =
+    JsonMapper.builder()
+      .addModule(new JavaTimeModule())
+      .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+      .build();
 
   /**
    * Commences the authentication process for an unauthorized request.
