@@ -1,6 +1,5 @@
 package com.fragbyte.iam.infrastructure.hashing.bcrypt.services;
 
-import com.fragbyte.iam.domain.model.valueobjects.HashingAlgorithm;
 import com.fragbyte.iam.infrastructure.hashing.bcrypt.BcryptHashingService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -41,11 +40,5 @@ public class HashingServiceImpl implements BcryptHashingService {
   @Override
   public boolean matches(CharSequence rawPassword, String encodedPassword) {
     return passwordEncoder.matches(rawPassword, encodedPassword);
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public HashingAlgorithm getAlgorithm() {
-    return HashingAlgorithm.BCRYPT;
   }
 }

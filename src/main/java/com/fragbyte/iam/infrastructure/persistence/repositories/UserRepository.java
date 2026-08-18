@@ -1,6 +1,7 @@
 package com.fragbyte.iam.infrastructure.persistence.repositories;
 
 import com.fragbyte.iam.domain.model.aggregates.User;
+import com.fragbyte.iam.domain.model.valueobjects.AuthProvider;
 import com.fragbyte.iam.domain.model.valueobjects.Email;
 import com.fragbyte.iam.domain.model.valueobjects.UserId;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -34,4 +35,15 @@ public interface UserRepository extends JpaRepository<User, UserId> {
    * @return {@code true} if a matching user exists; otherwise {@code false}
    */
   boolean existsByEmail(Email email);
+
+  /**
+   * Retrieves a user by their federated identity.
+   *
+   * @param provider the external authentication provider
+   * @param providerSubject the unique subject identifier from the provider
+   * @return an {@link Optional} containing the matching user if found; otherwise, {@link
+   *     Optional#empty()}
+   */
+  Optional<User> findByFederatedIdentityProviderAndFederatedIdentityProviderSubject(
+      AuthProvider provider, String providerSubject);
 }
