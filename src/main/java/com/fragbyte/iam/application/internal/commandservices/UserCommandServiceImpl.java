@@ -1,5 +1,7 @@
 package com.fragbyte.iam.application.internal.commandservices;
 
+import com.fragbyte.iam.application.internal.outboundservices.externalidentity.ExternalIdentityVerifier;
+import com.fragbyte.iam.application.internal.outboundservices.externalidentity.VerifiedExternalIdentity;
 import com.fragbyte.iam.application.internal.outboundservices.hashing.HashingService;
 import com.fragbyte.iam.application.internal.outboundservices.tokens.TokenService;
 import com.fragbyte.iam.domain.exceptions.EmailAlreadyExistsException;
@@ -12,16 +14,22 @@ import com.fragbyte.iam.domain.model.commands.AssignAccessRoleCommand;
 import com.fragbyte.iam.domain.model.commands.ChangeEmailCommand;
 import com.fragbyte.iam.domain.model.commands.ChangePasswordCommand;
 import com.fragbyte.iam.domain.model.commands.DisableUserCommand;
+import com.fragbyte.iam.domain.model.commands.EnableUserCommand;
+import com.fragbyte.iam.domain.model.commands.LinkFederatedIdentityCommand;
 import com.fragbyte.iam.domain.model.commands.LockUserCommand;
 import com.fragbyte.iam.domain.model.commands.ProvisionUserCommand;
 import com.fragbyte.iam.domain.model.commands.RefreshTokenCommand;
 import com.fragbyte.iam.domain.model.commands.RemoveAccessRoleCommand;
 import com.fragbyte.iam.domain.model.commands.SignInCommand;
+import com.fragbyte.iam.domain.model.commands.SignInWithProviderCommand;
 import com.fragbyte.iam.domain.model.commands.SignUpCommand;
+import com.fragbyte.iam.domain.model.commands.UnlinkFederatedIdentityCommand;
 import com.fragbyte.iam.domain.model.commands.UnlockUserCommand;
 import com.fragbyte.iam.domain.model.commands.VerifyEmailCommand;
+import com.fragbyte.iam.domain.model.entities.FederatedIdentity;
 import com.fragbyte.iam.domain.model.valueobjects.AccessRoles;
 import com.fragbyte.iam.domain.model.valueobjects.AccountStatus;
+import com.fragbyte.iam.domain.model.valueobjects.AuthProvider;
 import com.fragbyte.iam.domain.model.valueobjects.PasswordHash;
 import com.fragbyte.iam.domain.model.valueobjects.UserId;
 import com.fragbyte.iam.domain.services.UserCommandService;
@@ -48,6 +56,7 @@ public class UserCommandServiceImpl implements UserCommandService {
   private final AccessRoleRepository accessRoleRepository;
   private final HashingService hashingService;
   private final TokenService tokenService;
+  private final ExternalIdentityVerifier externalIdentityVerifier;
   private final boolean verificationEnabled;
 
   /**
@@ -57,6 +66,7 @@ public class UserCommandServiceImpl implements UserCommandService {
    * @param accessRoleRepository the access role repository
    * @param hashingService the hashing service
    * @param tokenService the token service
+   * @param externalIdentityVerifier the external identity verifier
    * @param verificationEnabled whether email verification is required for new accounts
    */
   public UserCommandServiceImpl(
@@ -64,11 +74,13 @@ public class UserCommandServiceImpl implements UserCommandService {
       AccessRoleRepository accessRoleRepository,
       HashingService hashingService,
       TokenService tokenService,
+      ExternalIdentityVerifier externalIdentityVerifier,
       @Value("${iam.verification.enabled:false}") boolean verificationEnabled) {
     this.userRepository = userRepository;
     this.accessRoleRepository = accessRoleRepository;
     this.hashingService = hashingService;
     this.tokenService = tokenService;
+    this.externalIdentityVerifier = externalIdentityVerifier;
     this.verificationEnabled = verificationEnabled;
   }
 
@@ -220,6 +232,14 @@ public class UserCommandServiceImpl implements UserCommandService {
 
   /** {@inheritDoc} */
   @Override
+  public void handle(EnableUserCommand command) {
+    var user = findUser(command.userId());
+    user.enable();
+    userRepository.save(user);
+  }
+
+  /** {@inheritDoc} */
+  @Override
   public void handle(AssignAccessRoleCommand command) {
     var user = findUser(command.userId());
     var role =
@@ -242,6 +262,85 @@ public class UserCommandServiceImpl implements UserCommandService {
     userRepository.save(user);
   }
 
+  /** {@inheritDoc} */
+  @Override
+  public Optional<ImmutablePair<User, String>> handle(SignInWithProviderCommand command) {
+    var verifiedIdentity =
+        externalIdentityVerifier.verifyToken(command.provider(), command.providerToken());
+
+    // Look up existing user by federated identity
+    var existingUser =
+        userRepository.findByFederatedIdentityProviderAndFederatedIdentityProviderSubject(
+            command.provider(), verifiedIdentity.providerSubject());
+
+    if (existingUser.isPresent()) {
+      var user = existingUser.get();
+      user.assertCanSignIn();
+      user.resetFailedSignInAttempts();
+      userRepository.save(user);
+      var token =
+          tokenService.generateToken(
+              user.getEmail().email(), user.getUserId().value(), user.getAccessRoles());
+      return Optional.of(ImmutablePair.of(user, token));
+    }
+
+    // Check if email matches an existing local user — link the identity
+    if (verifiedIdentity.providerEmail() != null) {
+      var emailUser = userRepository.findByEmail(new com.fragbyte.iam.domain.model.valueobjects.Email(verifiedIdentity.providerEmail()));
+      if (emailUser.isPresent()) {
+        var user = emailUser.get();
+        var identity =
+            new FederatedIdentity(
+                command.provider(), verifiedIdentity.providerSubject(), verifiedIdentity.providerEmail());
+        user.linkFederatedIdentity(identity);
+        userRepository.save(user);
+        var token =
+            tokenService.generateToken(
+                user.getEmail().email(), user.getUserId().value(), user.getAccessRoles());
+        return Optional.of(ImmutablePair.of(user, token));
+      }
+    }
+
+    // Auto-create a new federated-only user
+    var defaultRole =
+        accessRoleRepository
+            .findByName(AccessRoles.USER)
+            .orElseThrow(() -> new RoleNotFoundException(AccessRoles.USER));
+    var identity =
+        new FederatedIdentity(
+            command.provider(), verifiedIdentity.providerSubject(), verifiedIdentity.providerEmail());
+    var email =
+        new com.fragbyte.iam.domain.model.valueobjects.Email(verifiedIdentity.providerEmail());
+    var user = User.createWithFederatedIdentity(email, identity, Set.of(defaultRole), initialAccountStatus());
+    userRepository.save(user);
+
+    var token =
+        tokenService.generateToken(
+            user.getEmail().email(), user.getUserId().value(), user.getAccessRoles());
+    return Optional.of(ImmutablePair.of(user, token));
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void handle(LinkFederatedIdentityCommand command) {
+    var user = findUser(command.userId());
+    var verifiedIdentity =
+        externalIdentityVerifier.verifyToken(command.provider(), command.providerToken());
+    var identity =
+        new FederatedIdentity(
+            command.provider(), verifiedIdentity.providerSubject(), verifiedIdentity.providerEmail());
+    user.linkFederatedIdentity(identity);
+    userRepository.save(user);
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void handle(UnlinkFederatedIdentityCommand command) {
+    var user = findUser(command.userId());
+    user.unlinkFederatedIdentity(command.provider());
+    userRepository.save(user);
+  }
+
   private User findUser(UserId userId) {
     return userRepository
         .findById(userId)
@@ -249,8 +348,7 @@ public class UserCommandServiceImpl implements UserCommandService {
   }
 
   private PasswordHash encodePassword(String rawPassword) {
-    return new PasswordHash(
-        hashingService.encode(rawPassword), hashingService.getAlgorithm());
+    return new PasswordHash(hashingService.encode(rawPassword));
   }
 
   private AccountStatus initialAccountStatus() {
