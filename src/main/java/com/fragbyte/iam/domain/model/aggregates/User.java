@@ -28,6 +28,7 @@ import com.fragbyte.iam.domain.model.valueobjects.Email;
 import com.fragbyte.iam.domain.model.valueobjects.PasswordHash;
 import com.fragbyte.iam.domain.model.valueobjects.UserId;
 import com.fragbyte.shared.domain.model.aggregates.AuditableAbstractAggregateRoot;
+import org.springframework.data.domain.Persistable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.EmbeddedId;
@@ -56,7 +57,7 @@ import java.util.stream.Collectors;
  */
 @Getter
 @Entity
-public class User extends AuditableAbstractAggregateRoot<User> {
+public class User extends AuditableAbstractAggregateRoot<User> implements Persistable<UserId> {
 
   /** Maximum number of consecutive failed sign-in attempts before the account is locked. */
   public static final int MAX_FAILED_SIGN_IN_ATTEMPTS = 5;
@@ -213,6 +214,18 @@ public class User extends AuditableAbstractAggregateRoot<User> {
 
   private boolean hasAtLeastOneAuthMethod() {
     return passwordHash != null || (federatedIdentities != null && !federatedIdentities.isEmpty());
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public UserId getId() {
+    return userId;
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public boolean isNew() {
+    return getCreatedAt() == null;
   }
 
   /**
