@@ -113,6 +113,23 @@ public class User extends AuditableAbstractAggregateRoot<User> implements Persis
     validateInvariants();
   }
 
+  private User(
+      Email email,
+      PasswordHash passwordHash,
+      FederatedIdentity identity,
+      Set<AccessRole> roles,
+      AccountStatus accountStatus) {
+    this.userId = UserId.newUserId();
+    this.email = email;
+    this.passwordHash = passwordHash;
+    this.roles = new HashSet<>(roles);
+    this.federatedIdentities = new HashSet<>();
+    this.federatedIdentities.add(identity);
+    this.accountStatus = accountStatus;
+    this.failedSignInAttempts = 0;
+    validateInvariants();
+  }
+
   /**
    * Creates a new {@code User} aggregate through the self-service sign-up flow.
    *
@@ -178,8 +195,7 @@ public class User extends AuditableAbstractAggregateRoot<User> implements Persis
       FederatedIdentity identity,
       Set<AccessRole> roles,
       AccountStatus accountStatus) {
-    var user = new User(email, null, roles, accountStatus);
-    user.federatedIdentities.add(identity);
+    var user = new User(email, null, identity, roles, accountStatus);
     user.publishEvent(new UserSignedUpEvent(user.userId, email));
     user.publishEvent(
         new UserFederatedIdentityLinkedEvent(
